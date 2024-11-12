@@ -31,24 +31,23 @@ Once you have installed and activated your plugin, you must go to the new `Desco
 
 1. `Project ID` - this is your Descope Project ID you can get from the settings page [here](https://app.descope.com/settings/project).
 
-If you would like to set up SAML or OIDC SSO you must also input the fields under the SSO Configuration Tab. 
----
+If you would like to set up SAML or OIDC SSO, you must also input the fields under the [SSO Configuration Tab](https://docs.descope.com/web-development-platforms/setup-guides/wordpress#samloidc-sso).
 
 Now that you've set everything up in the background, let's integrate the plugin features in your actual website. To add any of these tags, you'll need to use shortcode blocks. If you're unfamiliar with WordPress, you can add a shortcode block by following these steps [here](https://wordpress.com/support/wordpress-editor/blocks/shortcode-block/).
 
 ### Add Descope Flows to your WP Pages
 
-First, you're going to want to add the Descope flows tag to one of your pages (this will be where the user signs in). To add the Descope flow page to your website, just add a shortcode block to the main text area of any page, and add the shortcode `[descope_wc flow_id="your-flow-id" /]`.
+First, you're going to want to add the Descope flows tag to one of your pages (this will be where the user signs in). To add the Descope flow page to your website, just add a shortcode block to the main text area of any page, and add the shortcode `[descope_wc flow_id="your-flow-id"]`.
 
 The **flow_id** is the id of the Descope flow that you want to implement in your page. You can edit your flows [here](https://app.descope.com/flows), as well as fetch its ID.
 
 ### SAML/OIDC SSO
 
-Add the `[saml_login_form]` or `[oidc_login_form]` shortcode to your main page to add the SSO capabilities.
+Add the `[saml_login_form]` or `[oidc_login_form]` shortcode to your main page to add SSO capabilities. Follow the steps [here](https://docs.descope.com/web-development-platforms/setup-guides/wordpress#samloidc-sso).
 
-### Logout
+### Google One Tap
 
-You can use the WordPress logout button to log out of WordPress and simultaneously end the Descope session.
+Add the `[onetap_form]` shortcode to your page to add Google One Tap to your WordPress site. Follow the steps [here](https://docs.descope.com/web-development-platforms/setup-guides/wordpress#google-one-tap).
 
 ---
 
