@@ -1,5 +1,7 @@
 jQuery(document).ready(function () {
     const projectId = ajax_object.clientId;
+    // get flow Id from shortcode & default to sign up or in if not present
+    const flowId = ajax_object.flowId ? ajax_object.flowId : 'sign-up-or-in';
     const sdk = Descope({
         projectId: projectId,
         persistTokens: true,
@@ -55,8 +57,8 @@ jQuery(document).ready(function () {
         console.log("Valid refresh token found. Logging in...");
         //handleUserDetails();
     } else {
-        const container = document.getElementById("sso-container");
-        container.innerHTML = '<descope-wc project-id="' + projectId + '" flow-id="sign-up-or-in"></descope-wc>';
+        const container = document.getElementById("descope-flow-container");
+        container.innerHTML = `<descope-wc style="outline: none;" project-id=${projectId} flow-id=${flowId} ></descope-wc>`;
         const wcElement = document.getElementsByTagName('descope-wc')[0];
 
         const onSuccess = (e) => {

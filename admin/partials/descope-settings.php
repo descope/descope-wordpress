@@ -1,5 +1,6 @@
 <?php
-if (!defined('ABSPATH')) exit; // Exit if accessed directly
+if (!defined('ABSPATH'))
+    exit; // Exit if accessed directly
 
 $nonce_code = 'descope-settings';
 $nonce = wp_create_nonce($nonce_code);
@@ -18,40 +19,16 @@ if (isset($_POST['save-config'])) {
 
     if (isset($_POST['nonce']) && wp_verify_nonce($_POST['nonce'], $nonce_code)) {
 
-        if ($tab == 'oidc-configuration') {
-            update_option('client_id', esc_attr($_POST['client_id']));
-            update_option('client_secret', esc_attr($_POST['client_secret']));
-            update_option('management_key', esc_attr($_POST['management_key']));
-            update_option('issuer_url', esc_attr($_POST['issuer_url']));
-            update_option('authorization_endpoint', esc_attr($_POST['authorization_endpoint']));
-            update_option('token_endpoint', esc_attr($_POST['token_endpoint']));
-            update_option('userinfo_endpoint', esc_attr($_POST['userinfo_endpoint']));
-        } else if ($tab == 'jwt') {
-            update_option('username', esc_attr($_POST['username']));
-            update_option('email', esc_attr($_POST['email']));
-            update_option('first_name', esc_attr($_POST['first_name']));
-            update_option('last_name', esc_attr($_POST['last_name']));
-        } else if ($tab == 'sync-users') {
-            $new = array();
-            $descope_field = !empty($_POST['descope_field']) ? $_POST['descope_field'] : null;
-            $wp_field = !empty($_POST['wp_field']) ? $_POST['wp_field'] : null;
+        if ($tab == 'sso-configuration') {
 
-            $count = count($descope_field);
-            for ($i = 0; $i < $count; $i++) {
-                if ($descope_field[$i] != '') :
-                    $new[$i]['descope_field'] = stripslashes(strip_tags($descope_field[$i]));
-                    $new[$i]['wp_field'] = stripslashes($wp_field[$i]);
-                endif;
-            }
-            update_option('dynamic_fields', $new);
-        } else {
-            update_option('descope_metadata', esc_attr($_POST['descope_metadata']));            
+            //saml configuration
+            update_option('descope_metadata', esc_attr($_POST['descope_metadata']));
             update_option('sso_management_key', esc_attr($_POST['sso_management_key']));
 
             // Load the XML file
             $xml_metadata = !empty($_POST['descope_metadata']) ? simplexml_load_file($_POST['descope_metadata']) : "";
             foreach ($xml_metadata->IDPSSODescriptor->SingleSignOnService as $service) {
-                
+
                 // Set the global variables
                 $entityID = $xml_metadata['entityID'];
                 $ssoURL = $service['Location'];
@@ -61,7 +38,7 @@ if (isset($_POST['save-config'])) {
                 } elseif ($service['Binding'] == 'urn:oasis:names:tc:SAML:2.0:bindings:HTTP-POST') {
                     $service['Location'] = esc_attr($service['Location']);
                 }
-                
+
             }
 
             // Parse the URL and extract the path
@@ -73,7 +50,7 @@ if (isset($_POST['save-config'])) {
             update_option('entity_id', esc_attr($entityID));
             update_option('sso_url', esc_attr($ssoURL));
             update_option('project_id', esc_attr($projectID));
-            
+
             $signingCertificate = $xml_metadata->IDPSSODescriptor->KeyDescriptor[0]->KeyInfo->X509Data->X509Certificate;
             $encryptionCertificate = $xml_metadata->IDPSSODescriptor->KeyDescriptor[1]->KeyInfo->X509Data->X509Certificate;
 
@@ -91,19 +68,44 @@ if (isset($_POST['save-config'])) {
 
             // Save the changes back to the XML file
             $xml->asXML(DESCOPE_METADATA_FILE);
-                       
+
+            //oidc configuration
+            update_option('client_id', esc_attr($_POST['client_id']));
+            update_option('client_secret', esc_attr($_POST['client_secret']));
+            update_option('management_key', esc_attr($_POST['management_key']));
+            update_option('issuer_url', esc_attr($_POST['issuer_url']));
+            update_option('authorization_endpoint', esc_attr($_POST['authorization_endpoint']));
+            update_option('token_endpoint', esc_attr($_POST['token_endpoint']));
+            update_option('userinfo_endpoint', esc_attr($_POST['userinfo_endpoint']));
+        } else if ($tab == 'sync-users') {
+            $new = array();
+            $descope_field = !empty($_POST['descope_field']) ? $_POST['descope_field'] : null;
+            $wp_field = !empty($_POST['wp_field']) ? $_POST['wp_field'] : null;
+
+            $count = count($descope_field);
+            for ($i = 0; $i < $count; $i++) {
+                if ($descope_field[$i] != ''):
+                    $new[$i]['descope_field'] = stripslashes(strip_tags($descope_field[$i]));
+                    $new[$i]['wp_field'] = stripslashes($wp_field[$i]);
+                endif;
+            }
+            update_option('dynamic_fields', $new);
+        } else {
+            update_option('client_id', esc_attr($_POST['client_id']));
         }
     }
 }
 $dynamic_fields = get_option('dynamic_fields');
 ?>
 <div class="wrap descope-wp">
-    <h1><?php _e('Configuration Details', 'descope-wp'); ?></h1>
+    <h1><?php _e('Descope Configuration', 'descope-wp'); ?></h1>
     <h2 class="nav-tab-wrapper">
-        <a href="?page=descope-settings" class="nav-tab <?php if ($tab === null) : ?>nav-tab-active<?php endif; ?>"><?php _e('SAML Configuration', 'descope-wp'); ?></a>
-        <a href="?page=descope-settings&tab=oidc-configuration" class="nav-tab <?php if ($tab === 'oidc-configuration') : ?>nav-tab-active<?php endif; ?>"><?php _e('OIDC Configuration', 'descope-wp'); ?></a>
-        <a href="?page=descope-settings&tab=jwt" class="nav-tab <?php if ($tab === 'jwt') : ?>nav-tab-active<?php endif; ?>"><?php _e('JWT Claims to WordPress Fields', 'descope-wp'); ?></a>
-        <a href="?page=descope-settings&tab=sync-users" class="nav-tab <?php if ($tab === 'sync-users') : ?>nav-tab-active<?php endif; ?>"><?php _e('Sync Users', 'descope-wp'); ?></a>
+        <a href="?page=descope-settings"
+            class="nav-tab <?php if ($tab === null): ?>nav-tab-active<?php endif; ?>"><?php _e('Descope Configuration', 'descope-wp'); ?></a>
+        <a href="?page=descope-settings&tab=sso-configuration"
+            class="nav-tab <?php if ($tab === 'sso-configuration'): ?>nav-tab-active<?php endif; ?>"><?php _e('SSO Configuration', 'descope-wp'); ?></a>
+        <a href="?page=descope-settings&tab=sync-users"
+            class="nav-tab <?php if ($tab === 'sync-users'): ?>nav-tab-active<?php endif; ?>"><?php _e('Sync Users', 'descope-wp'); ?></a>
     </h2>
 </div>
 <div class="tab-content">
@@ -112,107 +114,123 @@ $dynamic_fields = get_option('dynamic_fields');
             <tbody>
                 <?php
                 switch ($tab):
-                    case 'oidc-configuration':
-                ?>
+                    case 'sso-configuration':
+                        ?>
                         <tr>
-                            <th>
-                                <label><?php _e('Client ID', 'descope-wp'); ?></label>
-                            </th>
-                            <td>
-                                <input type="text" name="client_id" class="regular-text" value="<?php echo get_option('client_id'); ?>" />
+                            <!-- SAML Column -->
+                            <td style="width: 50%; vertical-align: top;">
+                                <h2><?php _e('SAML Configuration', 'descope-wp'); ?></h2>
+                                <table class="form-table">
+                                    <!-- SAML Configuration Fields -->
+                                    <tr>
+                                        <th>
+                                            <label><?php _e('Metadata(XML)', 'descope-wp'); ?></label>
+                                        </th>
+                                        <td>
+                                            <input type="text" name="descope_metadata" class="regular-text"
+                                                value="<?php echo get_option('descope_metadata'); ?>" />
+                                        </td>
+                                    </tr>
+                                    <input type="hidden" name="entity_id" class="regular-text"
+                                        value="<?php echo isset($entityID) ? $entityID : get_option('entity_id'); ?>" />
+                                    <input type="hidden" name="sso_url" class="regular-text"
+                                        value="<?php echo isset($ssoURL) ? $ssoURL : get_option('sso_url'); ?>" />
+                                    <input type="hidden" name="x_certificate" class="regular-text"
+                                        value="<?php echo isset($signingCertificate) ? $signingCertificate : get_option('x_certificate'); ?>" />
+                                    <input type="hidden" name="project_id" class="regular-text"
+                                        value="<?php echo isset($projectID) ? $projectID : get_option('project_id'); ?>" />
+                                    <tr>
+                                        <th>
+                                            <label><?php _e('Management Key', 'descope-wp'); ?></label>
+                                        </th>
+                                        <td>
+                                            <input type="text" name="sso_management_key" class="regular-text"
+                                                value="<?php echo get_option('sso_management_key'); ?>" />
+                                        </td>
+                                    </tr>
+
+                                </table>
                             </td>
+
+                            <!-- OIDC Column -->
+                            <td style="width: 50%; vertical-align: top;">
+                                <h2><?php _e('OIDC Configuration', 'descope-wp'); ?></h2>
+                                <table class="form-table">
+                                    <!-- OIDC Configuration Fields -->
+                                    <tr>
+                                        <th>
+                                            <label><?php _e('Client ID', 'descope-wp'); ?></label>
+                                        </th>
+                                        <td>
+                                            <input type="text" name="client_id" class="regular-text"
+                                                value="<?php echo get_option('client_id'); ?>" />
+                                        </td>
+                                    </tr>
+                                    <tr>
+                                        <th>
+                                            <label><?php _e('Client Secret', 'descope-wp'); ?></label>
+                                        </th>
+                                        <td>
+                                            <input type="text" name="client_secret" class="regular-text"
+                                                value="<?php echo get_option('client_secret'); ?>" />
+                                        </td>
+                                    </tr>
+                                    <tr>
+                                        <th>
+                                            <label><?php _e('Management Key', 'descope-wp'); ?></label>
+                                        </th>
+                                        <td>
+                                            <input type="text" name="management_key" class="regular-text"
+                                                value="<?php echo get_option('management_key'); ?>" />
+                                        </td>
+                                    </tr>
+                                    <tr>
+                                        <th>
+                                            <label><?php _e('Issuer URL', 'descope-wp'); ?></label>
+                                        </th>
+                                        <td>
+                                            <input type="text" name="issuer_url" class="regular-text"
+                                                value="<?php echo get_option('issuer_url'); ?>" />
+                                        </td>
+                                    </tr>
+                                    <tr>
+                                        <th>
+                                            <label><?php _e('Authorization Endpoint', 'descope-wp'); ?></label>
+                                        </th>
+                                        <td>
+                                            <input type="text" name="authorization_endpoint" class="regular-text"
+                                                value="<?php echo get_option('authorization_endpoint'); ?>" />
+                                        </td>
+                                    </tr>
+                                    <tr>
+                                        <th>
+                                            <label><?php _e('Token Endpoint', 'descope-wp'); ?></label>
+                                        </th>
+                                        <td>
+                                            <input type="text" name="token_endpoint" class="regular-text"
+                                                value="<?php echo get_option('token_endpoint'); ?>" />
+                                        </td>
+                                    </tr>
+                                    <tr>
+                                        <th>
+                                            <label><?php _e('User Info Endpoint', 'descope-wp'); ?></label>
+                                        </th>
+                                        <td>
+                                            <input type="text" name="userinfo_endpoint" class="regular-text"
+                                                value="<?php echo get_option('userinfo_endpoint'); ?>" />
+                                        </td>
+                                    </tr>
+                                </table>
+                            </td>
+
                         </tr>
-                        <tr>
-                            <th>
-                                <label><?php _e('Client Secret', 'descope-wp'); ?></label>
-                            </th>
-                            <td>
-                                <input type="text" name="client_secret" class="regular-text" value="<?php echo get_option('client_secret'); ?>" />
-                            </td>
-                        </tr>
-                        <tr>
-                            <th>
-                                <label><?php _e('Management Key', 'descope-wp'); ?></label>
-                            </th>
-                            <td>
-                                <input type="text" name="management_key" class="regular-text" value="<?php echo get_option('management_key'); ?>" />
-                            </td>
-                        </tr>
-                        <tr>
-                            <th>
-                                <label><?php _e('Issuer URL', 'descope-wp'); ?></label>
-                            </th>
-                            <td>
-                                <input type="text" name="issuer_url" class="regular-text" value="<?php echo get_option('issuer_url'); ?>" />
-                            </td>
-                        </tr>
-                        <tr>
-                            <th>
-                                <label><?php _e('Authorization Endpoint', 'descope-wp'); ?></label>
-                            </th>
-                            <td>
-                                <input type="text" name="authorization_endpoint" class="regular-text" value="<?php echo get_option('authorization_endpoint'); ?>" />
-                            </td>
-                        </tr>
-                        <tr>
-                            <th>
-                                <label><?php _e('Token Endpoint', 'descope-wp'); ?></label>
-                            </th>
-                            <td>
-                                <input type="text" name="token_endpoint" class="regular-text" value="<?php echo get_option('token_endpoint'); ?>" />
-                            </td>
-                        </tr>
-                        <tr>
-                            <th>
-                                <label><?php _e('User Info Endpoint', 'descope-wp'); ?></label>
-                            </th>
-                            <td>
-                                <input type="text" name="userinfo_endpoint" class="regular-text" value="<?php echo get_option('userinfo_endpoint'); ?>" />
-                            </td>
-                        </tr>                        
-                    <?php
-                        break;
-                    case 'jwt':
-                    ?>
-                        <tr>
-                            <th>
-                                <label><?php _e('Username', 'descope-wp'); ?></label>
-                            </th>
-                            <td>
-                                <input type="text" name="username" class="regular-text" value="<?php echo get_option('username'); ?>" />
-                            </td>
-                        </tr>
-                        <tr>
-                            <th>
-                                <label><?php _e('Email', 'descope-wp'); ?></label>
-                            </th>
-                            <td>
-                                <input type="email" name="email" class="regular-text" value="<?php echo get_option('email'); ?>" />
-                            </td>
-                        </tr>
-                        <tr>
-                            <th>
-                                <label><?php _e('First Name', 'descope-wp'); ?></label>
-                            </th>
-                            <td>
-                                <input type="text" name="first_name" class="regular-text" value="<?php echo get_option('first_name'); ?>" />
-                            </td>
-                        </tr>
-                        <tr>
-                            <th>
-                                <label><?php _e('Last Name', 'descope-wp'); ?></label>
-                            </th>
-                            <td>
-                                <input type="text" name="last_name" class="regular-text" value="<?php echo get_option('last_name'); ?>" />
-                            </td>
-                        </tr>
-                    <?php
+                        <?php
                         break;
                     case 'sync-users':
-                    ?>
+                        ?>
                         <tr class="dynamic">
                             <th>
-                                <label><?php _e('Custom Fields Maping', 'descope-wp'); ?></label>
+                                <label><?php _e('Custom Fields Mapping', 'descope-wp'); ?></label>
                             </th>
                             <td>
                                 <table class="form-table dynamic-table-content repeater-text-fields-table">
@@ -238,31 +256,20 @@ $dynamic_fields = get_option('dynamic_fields');
                                 <a class="add-repeater-text-field button-primary"><?php _e('Add New', 'descope-wp'); ?></a>
                             </td>
                         </tr>
-                    <?php
+                        <?php
                         break;
                     default:
-                    ?>
+                        ?>
                         <tr>
                             <th>
-                                <label><?php _e('Metadata(XML)', 'descope-wp'); ?></label>
+                                <label><?php _e('Project ID', 'descope-wp'); ?></label>
                             </th>
                             <td>
-                                <input type="text" name="descope_metadata" class="regular-text" value="<?php echo get_option('descope_metadata'); ?>" />
+                                <input type="text" name="client_id" class="regular-text"
+                                    value="<?php echo get_option('client_id'); ?>" />
                             </td>
                         </tr>
-                            <input type="hidden" name="entity_id" class="regular-text" value="<?php echo isset($entityID) ? $entityID : get_option('entity_id'); ?>" />
-                            <input type="hidden" name="sso_url" class="regular-text" value="<?php echo isset($ssoURL) ? $ssoURL : get_option('sso_url'); ?>" />
-                            <input type="hidden" name="x_certificate" class="regular-text" value="<?php echo isset($signingCertificate) ? $signingCertificate : get_option('x_certificate'); ?>" />
-                            <input type="hidden" name="project_id" class="regular-text" value="<?php echo isset($projectID) ? $projectID : get_option('project_id'); ?>" />
-                        <tr>
-                            <th>
-                                <label><?php _e('Management Key', 'descope-wp'); ?></label>
-                            </th>
-                            <td>
-                                <input type="text" name="sso_management_key" class="regular-text" value="<?php echo get_option('sso_management_key'); ?>" />
-                            </td>
-                        </tr>
-                <?php
+                        <?php
                         break;
                 endswitch;
                 ?>
@@ -270,14 +277,15 @@ $dynamic_fields = get_option('dynamic_fields');
         </table>
         <p class="submit">
             <input type="hidden" name="nonce" value="<?php echo $nonce; ?>" />
-            <input type="submit" name="save-config" class="button button-primary btn" class="regular-text" value="<?php _e('Save Configuration', 'descope-wp'); ?>" />
+            <input type="submit" name="save-config" class="button button-primary btn" class="regular-text"
+                value="<?php _e('Save Configuration', 'descope-wp'); ?>" />
         </p>
     </form>
 
     <?php
     if ($tab == 'sync-users') {
-    ?>
-        <h2><?php _e('Sync Users with OIDC', 'descope-wp'); ?></h2>
+        ?>
+        <h2><?php _e('Sync Users', 'descope-wp'); ?></h2>
         <hr>
         <form name="sync-user" id="sync-form" action="#" method="POST">
             <select name="user-role" id="user-role">
@@ -294,15 +302,17 @@ $dynamic_fields = get_option('dynamic_fields');
                 }
                 ?>
             </select>
-            <button type="submit" name="sync-user" id="sync-user" class="button button-primary"><?php _e('Sync Users', 'descope-wp'); ?></button>
+            <button type="submit" name="sync-user" id="sync-user"
+                class="button button-primary"><?php _e('Sync Users', 'descope-wp'); ?></button>
             <button id="clear-log-button" class="button button-secondary"><?php _e('Clear Log', 'descope-wp'); ?></button>
         </form>
         <div id="progress-container" style="display: none;">
             <div class="progress">
-                <div id="progress-bar" class="progress-bar" role="progressbar" style="width: 0%;" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100">0%</div>
+                <div id="progress-bar" class="progress-bar" role="progressbar" style="width: 0%;" aria-valuenow="0"
+                    aria-valuemin="0" aria-valuemax="100">0%</div>
             </div>
         </div>
-    <?php
+        <?php
         $this->debug_log_page();
     } ?>
 </div>

@@ -8,21 +8,17 @@
  * registers the activation and deactivation functions, and defines a function
  * that starts the plugin.
  *
- * @link              https://xyz.com
- * @since             1.0
+ * @link              https://descope.com/
+ * @since             1.0.0
  * @package           Descope_Wp
  *
  * @wordpress-plugin
- * Plugin Name:       Descope WordPress Plugin
- * Plugin URI:        https://xyz.com
- * Description:       This is a description of the plugin.
+ * Plugin Name:       Descope Wordpress Auth Plugin
+ * Description:       Add password-less authentication and user management to your site with Descope OIDC.
  * Version:           1.0.0
- * Author:            Dipak
- * Author URI:        https://xyz.com/
- * License:           GPL-2.0+
- * License URI:       http://www.gnu.org/licenses/gpl-2.0.txt
- * Text Domain:       descope-wp
- * Domain Path:       /languages
+ * Author:            Descope
+ * Author URI:        https://descope.com/
+ * License:           GPL2
  */
 
 // If this file is called directly, abort.
@@ -31,9 +27,7 @@ if (!defined('WPINC')) {
 }
 
 /**
- * Currently plugin version.
- * Start at version 1.0.0 and use SemVer - https://semver.org
- * Rename this for your plugin and update it as you release new versions.
+ * Current plugin version.
  */
 define('DESCOPE_WP_VERSION', '1.0.0');
 define('DESCOPE_LOG_FILE', WP_CONTENT_DIR . '/descope-logs/descope.log');

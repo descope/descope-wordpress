@@ -1,16 +1,6 @@
 <?php
 
 /**
- * Register all actions and filters for the plugin
- *
- * @link       https://xyz.com
- * @since      1.0.0
- *
- * @package    Descope_Wp
- * @subpackage Descope_Wp/includes
- */
-
-/**
  * Register all actions and filters for the plugin.
  *
  * Maintain a list of all hooks that are registered throughout
@@ -19,7 +9,7 @@
  *
  * @package    Descope_Wp
  * @subpackage Descope_Wp/includes
- * @author     Dipak <dmakvana33@gmail.com>
+ * @author     Descope
  */
 class Descope_Wp_Loader {
 

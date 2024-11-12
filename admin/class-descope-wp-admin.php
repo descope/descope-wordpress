@@ -3,23 +3,14 @@
 /**
  * The admin-specific functionality of the plugin.
  *
- * @link       https://xyz.com
- * @since      1.0.0
- *
- * @package    Descope_Wp
- * @subpackage Descope_Wp/admin
- */
-
-/**
- * The admin-specific functionality of the plugin.
- *
  * Defines the plugin name, version, and two examples hooks for how to
  * enqueue the admin-specific stylesheet and JavaScript.
  *
  * @package    Descope_Wp
  * @subpackage Descope_Wp/admin
- * @author     Dipak <dmakvana33@gmail.com>
+ * @author     Descope
  */
+
 class Descope_Wp_Admin
 {
 
@@ -85,18 +76,6 @@ class Descope_Wp_Admin
      */
     public function enqueue_scripts()
     {
-
-        /**
-         * This function is provided for demonstration purposes only.
-         *
-         * An instance of this class should be passed to the run() function
-         * defined in Descope_Wp_Loader as all of the hooks are defined
-         * in that particular class.
-         *
-         * The Descope_Wp_Loader will then create the relationship
-         * between the defined hooks and the functions defined in this
-         * class.
-         */
 
         wp_enqueue_script($this->plugin_name, plugin_dir_url(__FILE__) . 'js/descope-wp-admin.js', array('jquery'), $this->version, false);
         wp_localize_script($this->plugin_name, 'my_ajax_object', array('ajax_url' => admin_url('admin-ajax.php'), 'security' => wp_create_nonce('sync_user_nonce')));
@@ -221,27 +200,26 @@ class Descope_Wp_Admin
         $userMeta = array();
 
         if ($customAttributes) {
-            // Map dynamic fields
+            // Map dynamic fields as descope_field => wp_field
             foreach ($customAttributes as $attribute) {
                 $descope_field = $attribute['descope_field'];
                 $wp_field = $attribute['wp_field'];
+                //$userMeta[$descope_field] = $wp_field;
                 $userMeta[$descope_field] = get_user_meta($user->ID, $wp_field, true);
             }
         }
 
         // Add user_url key
-        $userMeta['website'] = get_the_author_meta('user_url', $user->ID);
+        //$userMeta['website'] = get_the_author_meta('user_url', $user->ID);
 
         $user_data = [
             "loginId" => $user->user_login,
             "email" => $user->user_email,
             "givenName" => $user->first_name,
             "familyName" => $user->last_name,
-            // "phone" => $phone,
+            "phone" => $user->user_phone,
             "displayName" => $user->display_name,
             "roleNames" => $user->roles,
-            "verifiedEmail" => true,
-            "verifiedPhone" => true,
             "status" => 'enabled',
             "customAttributes" => empty($userMeta) ? null : $userMeta
         ];
@@ -256,8 +234,8 @@ class Descope_Wp_Admin
         // Concatenate project ID and management key to form authorization token
         $authorization_token = $project_id . ':' . $management_key;
 
-        // Search for user by email
-        $search_data = ["email" => $user->user_email];
+        // Search for user by loginId
+        $search_data = ["loginId" => $user_data['loginId']];
         $search_result = $this->make_curl_post_request($descope_api_url_search, $authorization_token, $search_data);
 
         if ($search_result['httpcode'] == 200) {

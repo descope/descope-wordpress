@@ -14,8 +14,10 @@ class Descope_Wp_Public
     private $userinfo_endpoint;
     private $descope_metadata;
     private $spBaseUrl;
-    private $auth;
     private $settingsInfo;
+    private $auth;
+    private $flowId;
+    private $providerId;
 
     public function __construct($plugin_name, $version)
     {
@@ -62,14 +64,17 @@ class Descope_Wp_Public
         add_action('init', array($this, 'descope_start_session'), 1);
         add_action('init', array($this, 'descope_init_oidc'));
         add_action('login_form_oidc_login', array($this, 'descope_oidc_login'));
-        add_action('login_form_oidc_callback', array($this, 'descope_oidc_callback'));
+
         add_shortcode('oidc_login_form', array($this, 'descope_login_form'));
-        add_shortcode('sso_login_form', array($this, 'descope_sso_login_form'));
+        add_shortcode('descope_wc', array($this, 'descope_web_component'));
         add_shortcode('saml_login_form', array($this, 'descope_saml_login_form'));
+        
+        add_action('login_form_oidc_callback', array($this, 'descope_oidc_callback'));
         add_action('init', array($this, 'descope_init_sso'));
 
         // Clean up session on WordPress logout
         add_action('wp_logout', array($this, 'descope_end_session'));
+        add_action('init', array($this, 'register_shortcodes'));
     }
 
     public function enqueue_styles()
@@ -87,8 +92,15 @@ class Descope_Wp_Public
             'ajax_url' => admin_url('admin-ajax.php'),
             'nonce' => wp_create_nonce('custom_nonce'),
             'siteUrl' => get_site_url(),
-            'clientId' => $this->client_id
+            'clientId' => $this->client_id,
+            'flowId' => $this->flowId
         ));
+    }
+
+    // Register Shortcodes
+    public function register_shortcodes() {
+        add_shortcode('oidc_login_form', array($this, 'descope_login_form'));
+        add_shortcode('onetap_form', array($this, 'descope_onetap'));
     }
 
     // Start PHP session if not already started
@@ -121,7 +133,7 @@ class Descope_Wp_Public
 
     // Initialize OIDC client
     public function descope_init_oidc()
-    {
+    { 
         // Initialize OpenID Connect client
         $this->oidc = new OpenIDConnectClient(
             get_option('authorization_endpoint'),
@@ -210,13 +222,65 @@ class Descope_Wp_Public
         }
     }
 
+    public function descope_onetap($atts) {
+        global $wp;
+        $this->providerId = $atts['provider_id'] ?? 'google';
+        if ( !is_user_logged_in() ) {
+            if (isset($_COOKIE['wordpress_descope_email'])) {
+
+                $user_email = $_COOKIE['wordpress_descope_email'];
+                $user = get_user_by('email', $user_email);
+    
+                if (!$user) {
+                    $user_id = wp_create_user($user_email, wp_generate_password(), $user_email);
+                    $user = get_user_by('id', $user_id);
+                }
+    
+                wp_set_current_user($user->ID);
+                wp_set_auth_cookie($user->ID);
+
+                //unset user email
+                unset($_COOKIE['wordpress_descope_email']);
+                setcookie('wordpress_descope_email', '', time() - 3600, '/');
+
+                wp_redirect(home_url());
+                
+            }
+            else if (is_home()) {
+                $this->enqueue_one_tap_script();
+            }
+       }
+    }
+
+    public function enqueue_one_tap_script() {
+        wp_register_script('one-tap-comp', plugin_dir_url(__FILE__) . 'js/one-tap-comp.js', ['descope-web-js'], '1.0', true);
+        wp_enqueue_script('one-tap-comp');
+    
+        // Pass parameters to the script
+        wp_localize_script('one-tap-comp', 'oneTapParams', array(
+            'projectId' => $this->client_id,
+            'providerId' => $this->providerId
+        ));
+    }    
+
     // Render OIDC login form shortcode
-    public function descope_login_form()
-    {
+    public function descope_login_form() {
         ob_start();
-?>
-<center><a href="<?php echo esc_url(site_url('/wp-login.php?action=oidc_login')); ?>">Login with OIDC</a></center>
-<?php
+        if (isset($_GET['sso'])) {
+            $this->auth->login();
+            $_SESSION['AuthNRequestID'] = $this->auth->getLastRequestID();
+        }
+        global $wp;
+        if ( !is_user_logged_in() ) {
+            ?>
+            <center><a href="<?php echo esc_url(site_url('/wp-login.php?action=oidc_login')); ?>">Login with OIDC</a></center>
+            <?php
+        }
+        else {
+            ?>
+            <center><a href="<?php echo wp_logout_url( home_url()); ?>" title="Logout">Logout</a></center>
+            <?php
+        }
         $output_string = ob_get_contents();
         ob_end_clean();
         return $output_string;
@@ -279,15 +343,16 @@ class Descope_Wp_Public
 
         return $user_info;
     }
-    public function descope_sso_login_form()
+    public function descope_web_component($atts)
     {
+        $this->flowId = $atts['flow_id'];
         ob_start();
         if (isset($_GET['sso'])) {
             $this->auth->login();
             $_SESSION['AuthNRequestID'] = $this->auth->getLastRequestID();
         }
     ?>
-    <div id="sso-container"></div>
+    <div id="descope-flow-container" style="outline: none;"></div>
     <?php
         $output_string = ob_get_contents();
         ob_end_clean();
@@ -300,9 +365,19 @@ class Descope_Wp_Public
             $this->auth->login();
         }
     ?>
-    <!-- <div id="sso-container"></div> -->
-    <p><a href="?sso">Login</a></p>
+    <!-- <div id="descope-flow-container"></div> -->    
     <?php
+        global $wp;
+        if ( !is_user_logged_in() ) {
+            ?>
+            <center><a href="?sso">Login</a></center>
+            <?php
+        }
+        else {
+            ?>
+            <center><a href="<?php echo wp_logout_url( home_url()); ?>" title="Logout">Logout</a></center>
+            <?php
+        }
         $output_string = ob_get_contents();
         ob_end_clean();
         return $output_string;
@@ -310,6 +385,12 @@ class Descope_Wp_Public
 
     public function descope_init_sso(){
         if (isset($_GET['acs'])) {
+            error_log("ACS endpoint hit.");
+
+            if (!isset($_POST['SAMLResponse'])) {
+            error_log("Error: SAMLResponse not found in POST data.");
+            return;
+        }
             if (isset($_SESSION) && isset($_SESSION['AuthNRequestID'])) {
                 $requestID = $_SESSION['AuthNRequestID'];
             } else {
@@ -333,13 +414,6 @@ class Descope_Wp_Public
             
             
             $_SESSION['samlUserdata'] = $this->auth->getAttributes();
-            // $_SESSION['samlNameId'] = $this->auth->getNameId();
-            // $_SESSION['samlNameIdFormat'] = $this->auth->getNameIdFormat();
-            // $_SESSION['samlNameIdNameQualifier'] = $this->auth->getNameIdNameQualifier();
-            // $_SESSION['samlNameIdSPNameQualifier'] = $this->auth->getNameIdSPNameQualifier();
-            // $_SESSION['samlSessionIndex'] = $this->auth->getSessionIndex();
-            // unset($_SESSION['AuthNRequestID']);
-            // print_r($this->auth->getAttributes());
 
             $user_email = $_SESSION['samlUserdata']['email'][0];
             $user = get_user_by('email', $user_email);
@@ -399,7 +473,6 @@ class Descope_Wp_Public
         }
 
         // Send the redirect URL back to the JS
-        // wp_redirect(home_url());
         wp_send_json_success(array('redirect_url' => home_url()));
         wp_die();
     }

@@ -1,19 +1,6 @@
 <?php
 
 /**
- * The file that defines the core plugin class
- *
- * A class definition that includes attributes and functions used across both the
- * public-facing side of the site and the admin area.
- *
- * @link       https://xyz.com
- * @since      1.0.0
- *
- * @package    Descope_Wp
- * @subpackage Descope_Wp/includes
- */
-
-/**
  * The core plugin class.
  *
  * This is used to define internationalization, admin-specific hooks, and
@@ -25,7 +12,7 @@
  * @since      1.0.0
  * @package    Descope_Wp
  * @subpackage Descope_Wp/includes
- * @author     Dipak <dmakvana33@gmail.com>
+ * @author     Descope
  */
 class Descope_Wp
 {

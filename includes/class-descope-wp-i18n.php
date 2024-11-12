@@ -1,19 +1,6 @@
 <?php
 
 /**
- * Define the internationalization functionality
- *
- * Loads and defines the internationalization files for this plugin
- * so that it is ready for translation.
- *
- * @link       https://xyz.com
- * @since      1.0.0
- *
- * @package    Descope_Wp
- * @subpackage Descope_Wp/includes
- */
-
-/**
  * Define the internationalization functionality.
  *
  * Loads and defines the internationalization files for this plugin
@@ -22,7 +9,7 @@
  * @since      1.0.0
  * @package    Descope_Wp
  * @subpackage Descope_Wp/includes
- * @author     Dipak <dmakvana33@gmail.com>
+ * @author     Descope
  */
 class Descope_Wp_i18n {
 
