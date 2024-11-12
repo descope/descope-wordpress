@@ -1,0 +1,6 @@
+{
+    "require": {
+        "jumbojett/openid-connect-php": "^1.0",
+        "onelogin/php-saml": "^4.2"
+    }
+}

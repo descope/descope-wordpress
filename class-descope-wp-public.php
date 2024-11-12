@@ -1,0 +1,440 @@
+<?php
+
+use Jumbojett\OpenIDConnectClient;
+
+class Descope_Wp_Public
+{
+    private $plugin_name;
+    private $version;
+    private $oidc;
+    private $client_id;
+    private $client_secret;
+    private $redirect_uri;
+    private $token_endpoint;
+    private $userinfo_endpoint;
+    private $descope_metadata;
+    private $spBaseUrl;
+    private $auth;
+    private $settingsInfo;
+
+    public function __construct($plugin_name, $version)
+    {
+        $this->plugin_name = $plugin_name;
+        $this->version = $version;
+
+        $this->client_id = get_option('client_id');
+        $this->client_secret = get_option('client_secret');
+        $this->redirect_uri = site_url('/wp-login.php?action=oidc_callback');
+        $this->token_endpoint = get_option('token_endpoint');
+        $this->userinfo_endpoint = get_option('userinfo_endpoint');
+        $this->descope_metadata = get_option('descope_metadata');
+
+        $spBaseUrl = site_url();
+        
+        if($this->descope_metadata){
+            $this->settingsInfo = array (
+                'sp' => array (
+                    'entityId' => get_option('entity_id'),
+                    'assertionConsumerService' => array (
+                        'url' => $spBaseUrl.'/?acs',
+                    ),
+                    'singleLogoutService' => array (
+                        'url' => $spBaseUrl.'/?sls',
+                    ),
+                    'NameIDFormat' => 'urn:oasis:names:tc:SAML:2.0:nameid-format:transient',
+                ),
+                'idp' => array (
+                    'entityId' => get_option('entity_id'),
+                    'singleSignOnService' => array (
+                        'url' => get_option('sso_url'),
+                    ),
+                    'singleLogoutService' => array (
+                        'url' => get_option('sso_url'),
+                    ),
+                    'x509cert' => str_replace(' ', '',get_option('x_certificate')),
+                ),
+            );
+
+            $this->auth = new OneLogin_Saml2_Auth($this->settingsInfo);
+        }
+
+        // Initialize session and OIDC client on WordPress init
+        add_action('init', array($this, 'descope_start_session'), 1);
+        add_action('init', array($this, 'descope_init_oidc'));
+        add_action('login_form_oidc_login', array($this, 'descope_oidc_login'));
+        add_action('login_form_oidc_callback', array($this, 'descope_oidc_callback'));
+        add_shortcode('oidc_login_form', array($this, 'descope_login_form'));
+        add_shortcode('sso_login_form', array($this, 'descope_sso_login_form'));
+        add_shortcode('saml_login_form', array($this, 'descope_saml_login_form'));
+        add_action('init', array($this, 'descope_init_sso'));
+
+        // Clean up session on WordPress logout
+        add_action('wp_logout', array($this, 'descope_end_session'));
+    }
+
+    public function enqueue_styles()
+    {
+        wp_enqueue_style($this->plugin_name, plugin_dir_url(__FILE__) . 'css/descope-wp-public.css', array(), $this->version, 'all');
+    }
+
+    public function enqueue_scripts()
+    {
+        wp_enqueue_script('descope-web-component', 'https://unpkg.com/@descope/web-component@latest/dist/index.js', array('jquery'), $this->version, false);
+        wp_enqueue_script('descope-web-js', 'https://unpkg.com/@descope/web-js-sdk@latest/dist/index.umd.js', array('jquery'), $this->version, false);
+        wp_enqueue_script($this->plugin_name, plugin_dir_url(__FILE__) . 'js/descope-wp-public.js', array('jquery'), $this->version, false);
+
+        wp_localize_script($this->plugin_name, 'ajax_object', array(
+            'ajax_url' => admin_url('admin-ajax.php'),
+            'nonce' => wp_create_nonce('custom_nonce'),
+            'siteUrl' => get_site_url(),
+            'clientId' => $this->client_id
+        ));
+    }
+
+    // Start PHP session if not already started
+    public function descope_start_session()
+    {
+        if (!session_id()) {
+            session_start();
+        }
+    }
+
+    // Destroy PHP session on logout
+    public function descope_end_session()
+    {
+        session_destroy();
+
+        // $this->auth->processSLO(false, $_SESSION['samlUserdata']);
+        ?>
+        <script>
+        logout().then((resp) => {
+            // Redirect back to home page
+            window.location = location.reload();
+        });
+
+        async function logout() {
+            const resp = await sdk.logout();
+        }
+        </script>
+        <?php
+    }
+
+    // Initialize OIDC client
+    public function descope_init_oidc()
+    {
+        // Initialize OpenID Connect client
+        $this->oidc = new OpenIDConnectClient(
+            get_option('authorization_endpoint'),
+            $this->client_id,
+            $this->client_secret
+        );
+
+        // Configure additional parameters
+        $this->oidc->providerConfigParam([
+            'token_endpoint' => $this->token_endpoint,
+            'userinfo_endpoint' => $this->userinfo_endpoint,
+        ]);
+
+        $this->oidc->setRedirectURL($this->redirect_uri);
+        $this->oidc->addScope(['openid', 'profile', 'email']);
+        $this->oidc->setResponseTypes(['code']);
+        $this->oidc->setClientID($this->client_id);
+        $this->oidc->setClientSecret($this->client_secret);
+    }
+
+    // Generate and store state parameter for CSRF protection
+    private function generateState()
+    {
+        $state = bin2hex(random_bytes(16));
+        $_SESSION['oidc_state'] = $state;
+        return $state;
+    }
+
+    // Redirect user to OIDC provider for authentication
+    public function descope_oidc_login()
+    {
+        $auth_url = get_option('authorization_endpoint') . '?' . http_build_query([
+            'client_id' => $this->client_id,
+            'redirect_uri' => site_url('/wp-login.php?action=oidc_callback'),
+            'response_type' => 'code',
+            'scope' => 'openid profile email',
+            'state' => $this->generateState(),
+        ]);
+
+        wp_redirect($auth_url);
+        exit;
+    }
+
+    // Callback function to handle OIDC provider response
+    public function descope_oidc_callback()
+    {
+        try {
+            // Verify state parameter to prevent CSRF
+            if (!isset($_GET['state']) || empty($_GET['state'])) {
+                throw new Exception('State parameter missing from callback');
+            }
+
+            $state = $_GET['state'];
+            $storedState = isset($_SESSION['oidc_state']) ? $_SESSION['oidc_state'] : null;
+
+            if ($state !== $storedState) {
+                throw new Exception('Invalid state parameter');
+            }
+
+            // Exchange authorization code for tokens
+            $tokens = $this->exchangeAuthorizationCodeForTokens($_GET['code']);
+
+            // Fetch user info using access token
+            $access_token = $tokens['access_token'];
+            $user_info = $this->requestUserInfoWithCurl($access_token);
+
+            // Retrieve or create the WordPress user
+            $user_email = $user_info['email'];
+            $user = get_user_by('email', $user_email);
+
+            if (!$user) {
+                // Create new user if not exists
+                $user_id = wp_create_user($user_email, wp_generate_password(), $user_email);
+                $user = get_user_by('id', $user_id);
+            }
+
+            // Log in the user and redirect
+            wp_set_current_user($user->ID);
+            wp_set_auth_cookie($user->ID);
+            wp_redirect(home_url());
+            exit;
+        } catch (Exception $e) {
+            // Handle errors gracefully
+            error_log('OIDC callback error: ' . $e->getMessage());
+            wp_die('Login failed: ' . $e->getMessage());
+        }
+    }
+
+    // Render OIDC login form shortcode
+    public function descope_login_form()
+    {
+        ob_start();
+?>
+<center><a href="<?php echo esc_url(site_url('/wp-login.php?action=oidc_login')); ?>">Login with OIDC</a></center>
+<?php
+        $output_string = ob_get_contents();
+        ob_end_clean();
+        return $output_string;
+    }
+
+    private function exchangeAuthorizationCodeForTokens($authorization_code)
+    {
+        $response = wp_remote_post($this->token_endpoint, [
+            'body' => [
+                'grant_type' => 'authorization_code',
+                'code' => $authorization_code,
+                'redirect_uri' => $this->redirect_uri,
+                'client_id' => $this->client_id,
+                'client_secret' => $this->client_secret,
+            ],
+        ]);
+
+        if (is_wp_error($response)) {
+            throw new Exception('Error fetching tokens: ' . $response->get_error_message());
+        }
+
+        $http_code = wp_remote_retrieve_response_code($response);
+        if ($http_code !== 200) {
+            $response_body = wp_remote_retrieve_body($response);
+            throw new Exception('Error fetching tokens: HTTP ' . $http_code . ' - ' . $response_body);
+        }
+
+        $token_data = json_decode(wp_remote_retrieve_body($response), true);
+
+        if (json_last_error() !== JSON_ERROR_NONE) {
+            throw new Exception('Error decoding token response JSON: ' . json_last_error_msg());
+        }
+
+        return $token_data;
+    }
+
+    private function requestUserInfoWithCurl($access_token)
+    {
+        $response = wp_remote_get($this->userinfo_endpoint, [
+            'headers' => [
+                'Authorization' => 'Bearer ' . $access_token,
+            ],
+        ]);
+
+        if (is_wp_error($response)) {
+            throw new Exception('Error fetching user info: ' . $response->get_error_message());
+        }
+
+        $http_code = wp_remote_retrieve_response_code($response);
+        if ($http_code !== 200) {
+            $response_body = wp_remote_retrieve_body($response);
+            throw new Exception('Error fetching user info: HTTP ' . $http_code . ' - ' . $response_body);
+        }
+
+        $user_info = json_decode(wp_remote_retrieve_body($response), true);
+
+        if (json_last_error() !== JSON_ERROR_NONE) {
+            throw new Exception('Error decoding user info JSON: ' . json_last_error_msg());
+        }
+
+        return $user_info;
+    }
+    public function descope_sso_login_form()
+    {
+        ob_start();
+        if (isset($_GET['sso'])) {
+            $this->auth->login();
+            $_SESSION['AuthNRequestID'] = $this->auth->getLastRequestID();
+        }
+    ?>
+    <div id="sso-container"></div>
+    <?php
+        $output_string = ob_get_contents();
+        ob_end_clean();
+        return $output_string;
+    }
+    public function descope_saml_login_form()
+    {
+        ob_start();
+        if (isset($_GET['sso'])) {
+            $this->auth->login();
+        }
+    ?>
+    <!-- <div id="sso-container"></div> -->
+    <p><a href="?sso">Login</a></p>
+    <?php
+        $output_string = ob_get_contents();
+        ob_end_clean();
+        return $output_string;
+    }
+
+    public function descope_init_sso(){
+        if (isset($_GET['acs'])) {
+            if (isset($_SESSION) && isset($_SESSION['AuthNRequestID'])) {
+                $requestID = $_SESSION['AuthNRequestID'];
+            } else {
+                $requestID = null;
+            }
+
+            $this->auth->processResponse($requestID);
+                 $errors = $this->auth->getErrors();
+        
+            if (!empty($errors)) {
+                echo '<p>',implode(', ', $errors),'</p>';
+                if ($this->auth->getSettings()->isDebugActive()) {
+                    echo '<p>'.htmlentities($this->auth->getLastErrorReason()).'</p>';
+                }
+            }
+        
+            if (!$this->auth->isAuthenticated()) {
+                echo "<p>Not authenticated</p>";
+                exit();
+            }
+            
+            
+            $_SESSION['samlUserdata'] = $this->auth->getAttributes();
+            // $_SESSION['samlNameId'] = $this->auth->getNameId();
+            // $_SESSION['samlNameIdFormat'] = $this->auth->getNameIdFormat();
+            // $_SESSION['samlNameIdNameQualifier'] = $this->auth->getNameIdNameQualifier();
+            // $_SESSION['samlNameIdSPNameQualifier'] = $this->auth->getNameIdSPNameQualifier();
+            // $_SESSION['samlSessionIndex'] = $this->auth->getSessionIndex();
+            // unset($_SESSION['AuthNRequestID']);
+            // print_r($this->auth->getAttributes());
+
+            $user_email = $_SESSION['samlUserdata']['email'][0];
+            $user = get_user_by('email', $user_email);
+
+            if (!$user) {
+                // Create new user if not exists
+                $user_id = wp_create_user($user_email, wp_generate_password(), $user_email);
+                $user = get_user_by('id', $user_id);
+            }
+
+            // Log in the user and redirect
+            wp_set_current_user($user->ID);
+            wp_set_auth_cookie($user->ID);
+            wp_redirect(home_url());
+            exit;
+        }
+    }
+
+    public function create_wp_user_ajax_handler()
+    {
+        check_ajax_referer('custom_nonce', 'nonce');
+
+        $user_details = json_decode(stripslashes($_POST['userDetails']), true);
+        $session_token = sanitize_text_field($_POST['sessionToken']);
+
+        if (!$user_details || !$session_token) {
+            wp_send_json_error(array('message' => 'Invalid user details or session token.'));
+        }
+
+        // Extract user information from $user_details
+        $email = sanitize_email($user_details['email']);
+        // $username = sanitize_user($user_details['username']);
+        $username = sanitize_user($user_details['email']);
+        $password = wp_generate_password();
+
+        // Check if user exists, if not, create a new one
+        if (!email_exists($email) && !username_exists($username)) {
+            $user_id = wp_create_user($username, $password, $email);
+
+            if (is_wp_error($user_id)) {
+                wp_send_json_error(array('message' => 'User creation failed.'));
+            }
+
+            // Optionally update user meta or roles
+            update_user_meta($user_id, 'session_token', $session_token);
+
+            // Auto login the user
+            wp_set_current_user($user_id);
+            wp_set_auth_cookie($user_id, true);
+            do_action('wp_login', $username, get_userdata($user_id));
+        } else {
+            // If user exists, log them in
+            $user = get_user_by('email', $email);
+            wp_set_current_user($user->ID);
+            wp_set_auth_cookie($user->ID, true);
+            do_action('wp_login', $user->user_login, $user);
+        }
+
+        // Send the redirect URL back to the JS
+        // wp_redirect(home_url());
+        wp_send_json_success(array('redirect_url' => home_url()));
+        wp_die();
+    }
+
+    public function basic_client()
+    {
+        $client_credentials = base64_encode($this->client_id . ':' . $this->client_secret);
+
+        $headers = [
+            'Authorization' => 'Basic ' . $client_credentials,
+            'Content-Type' => 'application/x-www-form-urlencoded'
+        ];
+
+        $body = http_build_query([
+            'grant_type' => 'client_credentials',
+            'scope' => 'openid profile email phone descope.claims descope.custom_claims',
+            'response_type' => 'code'
+        ]);
+
+        $response = wp_remote_post($this->token_endpoint, [
+            'headers' => $headers,
+            'body' => $body
+        ]);
+
+        if (is_wp_error($response)) {
+            echo 'Error: ' . $response->get_error_message();
+        } else {
+            $response_body = wp_remote_retrieve_body($response);
+            $tokenResponse = json_decode($response_body);
+
+            if (isset($tokenResponse->access_token)) {
+                $_SESSION['access_token'] = $tokenResponse->access_token;
+            } else {
+                //echo 'Error: No access token received. Response: ' . $response_body;
+            }
+        }
+    }
+}

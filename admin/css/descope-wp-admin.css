@@ -1,0 +1,44 @@
+/**
+ * All of the CSS for your admin-specific functionality should be
+ * included in this file.
+ */
+.repeater-text-fields-wrapper td {
+    padding-left: 0;
+}
+
+.dynamic-heading span {
+    font-weight: bold;
+}
+
+.dynamic-table-content {
+    max-width: 420px;
+    width: 100%;
+    overflow-x: auto;
+    margin-top: -15px;
+}
+
+.dynamic-table-content tbody tr:first-child td:last-child button {
+    pointer-events: none;
+    filter: grayscale(1);
+}
+
+#progress-container {
+    margin-top: 20px;
+}
+
+.progress {
+    height: 30px;
+    background-color: #f3f3f3;
+    border-radius: 5px;
+    box-shadow: inset 0 1px 3px rgba(0, 0, 0, .2);
+    overflow: hidden;
+}
+
+.progress-bar {
+    height: 100%;
+    line-height: 30px;
+    color: white;
+    text-align: center;
+    background-color: #4caf50;
+    transition: width 0.4s ease;
+}
