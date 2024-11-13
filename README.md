@@ -2,6 +2,8 @@
 
 ## WordPress Plugin for [Descope](https://www.descope.com/) Authentication
 
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+
 ## Getting Started
 
 ### Requirements
