@@ -5,8 +5,7 @@
  *
  * This file is used to markup the admin-facing aspects of the plugin.
  *
- * @link       https://xyz.com
- * @since      1.0.0
+* @since      1.0.0
  *
  * @package    Descope_Wp
  * @subpackage Descope_Wp/admin/partials

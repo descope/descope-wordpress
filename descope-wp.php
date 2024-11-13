@@ -8,7 +8,7 @@
  * registers the activation and deactivation functions, and defines a function
  * that starts the plugin.
  *
- * @link              https://descope.com/
+ * @link              https://www.descope.com/
  * @since             1.0.0
  * @package           Descope_Wp
  *
@@ -17,7 +17,7 @@
  * Description:       Add password-less authentication and user management to your site with Descope OIDC.
  * Version:           1.0.0
  * Author:            Descope
- * Author URI:        https://descope.com/
+ * Author URI:        https://www.descope.com/
  * License:           GPL2
  */
 
