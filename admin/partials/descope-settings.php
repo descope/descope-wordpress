@@ -15,7 +15,6 @@ $projectID = get_option('project_id', null);
 $tab = isset($_GET['tab']) ? $_GET['tab'] : $default_tab;
 
 if (isset($_POST['save-config'])) {
-
     // Verify nonce
     if (isset($_POST['nonce']) && wp_verify_nonce($_POST['nonce'], $nonce_code)) {
 
@@ -24,7 +23,6 @@ if (isset($_POST['save-config'])) {
                 // Update options when form is submitted
                 update_option('descope_metadata', esc_attr($_POST['descope_metadata']));
                 update_option('sso_management_key', esc_attr($_POST['sso_management_key']));
-            }
 
             // Process the metadata and update values
             $xml_metadata_content = !empty($_POST['descope_metadata']) ? file_get_contents($_POST['descope_metadata']) : null;
@@ -59,22 +57,28 @@ if (isset($_POST['save-config'])) {
                     update_option('project_id', esc_attr($projectID));
                     update_option('x_certificate', esc_attr($signingCertificate));
 
-                    // Optional: Save XML back if required (example: modify and save Descope metadata file)
-                    if (defined('DESCOPE_METADATA_FILE')) {
-                        $xml = simplexml_load_file(DESCOPE_METADATA_FILE);
-                        if ($xml) {
-                            $xml['entityID'] = esc_attr($entityID);
-                            $xml->IDPSSODescriptor->KeyDescriptor[0]->KeyInfo->X509Data->X509Certificate = str_replace(' ', '', esc_attr($signingCertificate));
-                            $xml->IDPSSODescriptor->KeyDescriptor[1]->KeyInfo->X509Data->X509Certificate = str_replace(' ', '', esc_attr($encryptionCertificate));
-                            $xml->asXML(DESCOPE_METADATA_FILE);
-                        }
+                    // Save Metadata XML back
+                    $xml = simplexml_load_file(DESCOPE_METADATA_FILE);
+                    if ($xml) {
+                        $xml['entityID'] = esc_attr($entityID);
+            
+                        $x_signingCertificate = str_replace(' ', '', esc_attr($signingCertificate));
+                        $x_encryptionCertificate = str_replace(' ', '', esc_attr($encryptionCertificate));
+            
+                        update_option('x_certificate', esc_attr($x_signingCertificate));
+            
+                        // Update 'X509Certificate' values without spaces
+                        $xml->IDPSSODescriptor->KeyDescriptor[0]->KeyInfo->X509Data->X509Certificate = $x_signingCertificate;
+                        $xml->IDPSSODescriptor->KeyDescriptor[1]->KeyInfo->X509Data->X509Certificate = $x_encryptionCertificate;
+            
+                        // Save the changes back to the XML file
+                        $xml->asXML(DESCOPE_METADATA_FILE);
                     }
-                } else {
-                    error_log('Invalid or missing IDPSSODescriptor in metadata.');
                 }
             } else {
                 error_log('Unable to load Descope metadata XML.');
             }
+        }
 
             // OIDC Configuration
             update_option('client_id', esc_attr($_POST['client_id']));

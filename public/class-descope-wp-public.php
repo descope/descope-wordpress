@@ -502,8 +502,7 @@ class Descope_Wp_Public
             'headers' => $headers,
             'body' => $body
         ]);
-    }
-
+        
         if (is_wp_error($response)) {
             echo 'Error: ' . $response->get_error_message();
         } else {
@@ -516,5 +515,6 @@ class Descope_Wp_Public
                 //echo 'Error: No access token received. Response: ' . $response_body;
             }
         }
+    }
     }
 }
