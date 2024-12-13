@@ -134,24 +134,26 @@ class Descope_Wp_Public
     // Initialize OIDC client
     public function descope_init_oidc()
     { 
-        // Initialize OpenID Connect client
-        $this->oidc = new OpenIDConnectClient(
-            get_option('authorization_endpoint'),
-            $this->client_id,
-            $this->client_secret
-        );
+        if (isset($_POST['client_id']) && isset($_POST['client_secret']) && isset($_POST['management_key']) && isset($_POST['issuer_url']) && isset($_POST['authorization_endpoint']) && isset($_POST['token_endpoint']) && isset($_POST['userinfo_endpoint'])) {
+            // Initialize OpenID Connect client
+            $this->oidc = new OpenIDConnectClient(
+                get_option('authorization_endpoint'),
+                $this->client_id,
+                $this->client_secret
+            );
 
-        // Configure additional parameters
-        $this->oidc->providerConfigParam([
-            'token_endpoint' => $this->token_endpoint,
-            'userinfo_endpoint' => $this->userinfo_endpoint,
-        ]);
+            // Configure additional parameters
+            $this->oidc->providerConfigParam([
+                'token_endpoint' => $this->token_endpoint,
+                'userinfo_endpoint' => $this->userinfo_endpoint,
+            ]);
 
-        $this->oidc->setRedirectURL($this->redirect_uri);
-        $this->oidc->addScope(['openid', 'profile', 'email']);
-        $this->oidc->setResponseTypes(['code']);
-        $this->oidc->setClientID($this->client_id);
-        $this->oidc->setClientSecret($this->client_secret);
+            $this->oidc->setRedirectURL($this->redirect_uri);
+            $this->oidc->addScope(['openid', 'profile', 'email']);
+            $this->oidc->setResponseTypes(['code']);
+            $this->oidc->setClientID($this->client_id);
+            $this->oidc->setClientSecret($this->client_secret);
+        }
     }
 
     // Generate and store state parameter for CSRF protection
@@ -288,6 +290,7 @@ class Descope_Wp_Public
 
     private function exchangeAuthorizationCodeForTokens($authorization_code)
     {
+        if (isset($_POST['token_endpoint'])) {
         $response = wp_remote_post($this->token_endpoint, [
             'body' => [
                 'grant_type' => 'authorization_code',
@@ -316,9 +319,11 @@ class Descope_Wp_Public
 
         return $token_data;
     }
+    }
 
     private function requestUserInfoWithCurl($access_token)
     {
+        if (isset($_POST['userinfo_endpoint'])) {
         $response = wp_remote_get($this->userinfo_endpoint, [
             'headers' => [
                 'Authorization' => 'Bearer ' . $access_token,
@@ -343,6 +348,7 @@ class Descope_Wp_Public
 
         return $user_info;
     }
+}
     public function descope_web_component($atts)
     {
         $this->flowId = $atts['flow_id'];
@@ -491,12 +497,12 @@ class Descope_Wp_Public
             'scope' => 'openid profile email phone descope.claims descope.custom_claims',
             'response_type' => 'code'
         ]);
-
+        if (isset($_POST['token_endpoint'])) {
         $response = wp_remote_post($this->token_endpoint, [
             'headers' => $headers,
             'body' => $body
         ]);
-
+        
         if (is_wp_error($response)) {
             echo 'Error: ' . $response->get_error_message();
         } else {
@@ -509,5 +515,6 @@ class Descope_Wp_Public
                 //echo 'Error: No access token received. Response: ' . $response_body;
             }
         }
+    }
     }
 }
