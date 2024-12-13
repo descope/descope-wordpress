@@ -5,71 +5,78 @@ if (!defined('ABSPATH'))
 $nonce_code = 'descope-settings';
 $nonce = wp_create_nonce($nonce_code);
 
-//Get the active tab from the $_GET param
+// Default values
 $default_tab = null;
-$entityID = null;
-$ssoURL = null;
-$ssoURL = null;
-$signingCertificate = null;
-$projectID = null;
+$entityID = get_option('entity_id', null);
+$ssoURL = get_option('sso_url', null);
+$signingCertificate = get_option('x_certificate', null);
+$projectID = get_option('project_id', null);
 
 $tab = isset($_GET['tab']) ? $_GET['tab'] : $default_tab;
 
 if (isset($_POST['save-config'])) {
 
+    // Verify nonce
     if (isset($_POST['nonce']) && wp_verify_nonce($_POST['nonce'], $nonce_code)) {
 
         if ($tab == 'sso-configuration') {
-
-            //saml configuration
-            update_option('descope_metadata', esc_attr($_POST['descope_metadata']));
-            update_option('sso_management_key', esc_attr($_POST['sso_management_key']));
-
-            // Load the XML file
-            $xml_metadata = !empty($_POST['descope_metadata']) ? simplexml_load_file($_POST['descope_metadata']) : "";
-            foreach ($xml_metadata->IDPSSODescriptor->SingleSignOnService as $service) {
-
-                // Set the global variables
-                $entityID = $xml_metadata['entityID'];
-                $ssoURL = $service['Location'];
-
-                if ($service['Binding'] == 'urn:oasis:names:tc:SAML:2.0:bindings:HTTP-Redirect') {
-                    $service['Location'] = esc_attr($service['Location']);
-                } elseif ($service['Binding'] == 'urn:oasis:names:tc:SAML:2.0:bindings:HTTP-POST') {
-                    $service['Location'] = esc_attr($service['Location']);
-                }
-
+            if (isset($_POST['descope_metadata']) && isset($_POST['sso_management_key'])) {
+                // Update options when form is submitted
+                update_option('descope_metadata', esc_attr($_POST['descope_metadata']));
+                update_option('sso_management_key', esc_attr($_POST['sso_management_key']));
             }
 
-            // Parse the URL and extract the path
-            $parsed_url = parse_url($entityID, PHP_URL_PATH);
-            $path_parts = explode('/', trim($parsed_url, '/'));
-            $parts = explode('-', $path_parts[0]);
-            $projectID = $parts[0];
+            // Process the metadata and update values
+            $xml_metadata_content = !empty($_POST['descope_metadata']) ? file_get_contents($_POST['descope_metadata']) : null;
 
-            update_option('entity_id', esc_attr($entityID));
-            update_option('sso_url', esc_attr($ssoURL));
-            update_option('project_id', esc_attr($projectID));
+            if ($xml_metadata_content) {
+                $xml_metadata = simplexml_load_string($xml_metadata_content, 'SimpleXMLElement', LIBXML_NOCDATA);
 
-            $signingCertificate = $xml_metadata->IDPSSODescriptor->KeyDescriptor[0]->KeyInfo->X509Data->X509Certificate;
-            $encryptionCertificate = $xml_metadata->IDPSSODescriptor->KeyDescriptor[1]->KeyInfo->X509Data->X509Certificate;
+                if ($xml_metadata && isset($xml_metadata->IDPSSODescriptor)) {
+                    foreach ($xml_metadata->IDPSSODescriptor->SingleSignOnService as $service) {
+                        $entityID = (string) $xml_metadata['entityID'];
+                        $ssoURL = (string) $service['Location'];
 
-            $xml = simplexml_load_file(DESCOPE_METADATA_FILE);
-            $xml['entityID'] = esc_attr($entityID);
+                        if ($service['Binding'] == 'urn:oasis:names:tc:SAML:2.0:bindings:HTTP-Redirect') {
+                            $service['Location'] = esc_attr($service['Location']);
+                        } elseif ($service['Binding'] == 'urn:oasis:names:tc:SAML:2.0:bindings:HTTP-POST') {
+                            $service['Location'] = esc_attr($service['Location']);
+                        }
+                    }
 
-            $x_signingCertificate = str_replace(' ', '', esc_attr($signingCertificate));
-            $x_encryptionCertificate = str_replace(' ', '', esc_attr($encryptionCertificate));
+                    // Parse the URL and extract the path
+                    $parsed_url = parse_url($entityID, PHP_URL_PATH);
+                    $path_parts = explode('/', trim($parsed_url, '/'));
+                    $parts = explode('-', $path_parts[0]);
+                    $projectID = $parts[0];
 
-            update_option('x_certificate', esc_attr($x_signingCertificate));
+                    $signingCertificate = (string) $xml_metadata->IDPSSODescriptor->KeyDescriptor[0]->KeyInfo->X509Data->X509Certificate;
+                    $encryptionCertificate = (string) $xml_metadata->IDPSSODescriptor->KeyDescriptor[1]->KeyInfo->X509Data->X509Certificate;
 
-            // Update 'X509Certificate' values without spaces
-            $xml->IDPSSODescriptor->KeyDescriptor[0]->KeyInfo->X509Data->X509Certificate = $x_signingCertificate;
-            $xml->IDPSSODescriptor->KeyDescriptor[1]->KeyInfo->X509Data->X509Certificate = $x_encryptionCertificate;
+                    // Update the options with the parsed values
+                    update_option('entity_id', esc_attr($entityID));
+                    update_option('sso_url', esc_attr($ssoURL));
+                    update_option('project_id', esc_attr($projectID));
+                    update_option('x_certificate', esc_attr($signingCertificate));
 
-            // Save the changes back to the XML file
-            $xml->asXML(DESCOPE_METADATA_FILE);
+                    // Optional: Save XML back if required (example: modify and save Descope metadata file)
+                    if (defined('DESCOPE_METADATA_FILE')) {
+                        $xml = simplexml_load_file(DESCOPE_METADATA_FILE);
+                        if ($xml) {
+                            $xml['entityID'] = esc_attr($entityID);
+                            $xml->IDPSSODescriptor->KeyDescriptor[0]->KeyInfo->X509Data->X509Certificate = str_replace(' ', '', esc_attr($signingCertificate));
+                            $xml->IDPSSODescriptor->KeyDescriptor[1]->KeyInfo->X509Data->X509Certificate = str_replace(' ', '', esc_attr($encryptionCertificate));
+                            $xml->asXML(DESCOPE_METADATA_FILE);
+                        }
+                    }
+                } else {
+                    error_log('Invalid or missing IDPSSODescriptor in metadata.');
+                }
+            } else {
+                error_log('Unable to load Descope metadata XML.');
+            }
 
-            //oidc configuration
+            // OIDC Configuration
             update_option('client_id', esc_attr($_POST['client_id']));
             update_option('client_secret', esc_attr($_POST['client_secret']));
             update_option('management_key', esc_attr($_POST['management_key']));
@@ -95,6 +102,7 @@ if (isset($_POST['save-config'])) {
         }
     }
 }
+
 $dynamic_fields = get_option('dynamic_fields');
 ?>
 <div class="wrap descope-wp">
@@ -237,7 +245,7 @@ $dynamic_fields = get_option('dynamic_fields');
                                     <thead>
                                         <tr class="dynamic-heading">
                                             <th><?php _e('Descope Fields', 'descope-wp'); ?></th>
-                                            <th><?php _e('Wordpress Fields', 'descope-wp'); ?></th>
+                                            <th><?php _e('WordPress Fields', 'descope-wp'); ?></th>
                                             <th><?php _e('Action', 'descope-wp'); ?></th>
                                         </tr>
                                     </thead>
@@ -275,6 +283,7 @@ $dynamic_fields = get_option('dynamic_fields');
                 ?>
             </tbody>
         </table>
+
         <p class="submit">
             <input type="hidden" name="nonce" value="<?php echo $nonce; ?>" />
             <input type="submit" name="save-config" class="button button-primary btn" class="regular-text"
