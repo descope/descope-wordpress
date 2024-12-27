@@ -33,12 +33,12 @@
             $('#progress-container').show();
 
             $.ajax({
-                url: my_ajax_object.ajax_url,
+                url: descope_admin_ajax_object.ajax_url,
                 type: 'POST',
                 data: {
                     action: 'sync_users_to_descope',
                     user_role: selectedRole,
-                    security: my_ajax_object.security
+                    security: descope_admin_ajax_object.security
                 },
                 success: function (response) {
                     if (response.success) {
@@ -75,11 +75,11 @@
             e.preventDefault();
 
             $.ajax({
-                url: my_ajax_object.ajax_url,
+                url: descope_admin_ajax_object.ajax_url,
                 type: 'POST',
                 data: {
                     action: 'clear_log_file',
-                    security: my_ajax_object.security
+                    security: descope_admin_ajax_object.security
                 },
                 success: function (response) {
                     if (response.success) {

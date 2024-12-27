@@ -78,7 +78,7 @@ class Descope_Wp_Admin
     {
 
         wp_enqueue_script($this->plugin_name, plugin_dir_url(__FILE__) . 'js/descope-wp-admin.js', array('jquery'), $this->version, false);
-        wp_localize_script($this->plugin_name, 'my_ajax_object', array('ajax_url' => admin_url('admin-ajax.php'), 'security' => wp_create_nonce('sync_user_nonce')));
+        wp_localize_script($this->plugin_name, 'descope_admin_ajax_object', array('ajax_url' => admin_url('admin-ajax.php'), 'security' => wp_create_nonce('sync_user_nonce')));
     }
 
     public function create_descope_log_directory()
