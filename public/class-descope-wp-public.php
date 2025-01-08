@@ -88,7 +88,7 @@ class Descope_Wp_Public
         wp_enqueue_script('descope-web-js', 'https://unpkg.com/@descope/web-js-sdk@latest/dist/index.umd.js', array('jquery'), $this->version, false);
         wp_enqueue_script($this->plugin_name, plugin_dir_url(__FILE__) . 'js/descope-wp-public.js', array('jquery'), $this->version, false);
 
-        wp_localize_script($this->plugin_name, 'ajax_object', array(
+        wp_localize_script($this->plugin_name, 'descope_ajax_object', array(
             'ajax_url' => admin_url('admin-ajax.php'),
             'nonce' => wp_create_nonce('custom_nonce'),
             'siteUrl' => get_site_url(),

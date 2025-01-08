@@ -1,7 +1,7 @@
 jQuery(document).ready(function () {
-    const projectId = ajax_object.clientId;
+    const projectId = descope_ajax_object.clientId;
     // get flow Id from shortcode & default to sign up or in if not present
-    const flowId = ajax_object.flowId ? ajax_object.flowId : 'sign-up-or-in';
+    const flowId = descope_ajax_object.flowId ? descope_ajax_object.flowId : 'sign-up-or-in';
     const sdk = Descope({
         projectId: projectId,
         persistTokens: true,
@@ -17,13 +17,13 @@ jQuery(document).ready(function () {
         }
 
         jQuery.ajax({
-            url: ajax_object.ajax_url,
+            url: descope_ajax_object.ajax_url,
             type: 'POST',
             data: {
                 action: 'create_wp_user',
                 sessionToken: sessionToken,
                 userDetails: JSON.stringify(userDetails),
-                nonce: ajax_object.nonce
+                nonce: descope_ajax_object.nonce
             },
             success: function (response) {
                 console.log(response);
@@ -78,7 +78,7 @@ jQuery(document).ready(function () {
     jQuery(".logoutButton").click(function () {
         logout().then((resp) => {
             // Redirect back to home page
-            window.location = ajax_object.siteUrl;
+            window.location = descope_ajax_object.siteUrl;
         });
 
         async function logout() {
