@@ -13,8 +13,8 @@
  * @package           Descope_Wp
  *
  * @wordpress-plugin
- * Plugin Name:       Descope Wordpress Auth Plugin
- * Description:       Add password-less authentication and user management to your site with Descope OIDC.
+ * Plugin Name:       Descope
+ * Description:       Add drag and drop authentication to your site with Descope.
  * Version:           1.0.0
  * Author:            Descope
  * Author URI:        https://www.descope.com/
