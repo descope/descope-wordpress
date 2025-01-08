@@ -134,6 +134,8 @@ class Descope_Wp_Public
     // Initialize OIDC client
     public function descope_init_oidc()
     { 
+        if (isset($_POST['client_id']) && isset($_POST['client_secret']) && isset($_POST['management_key']) && isset($_POST['issuer_url']) && isset($_POST['authorization_endpoint']) && isset($_POST['token_endpoint']) && isset($_POST['userinfo_endpoint'])) {
+
         // Initialize OpenID Connect client
         $this->oidc = new OpenIDConnectClient(
             get_option('authorization_endpoint'),
@@ -152,6 +154,7 @@ class Descope_Wp_Public
         $this->oidc->setResponseTypes(['code']);
         $this->oidc->setClientID($this->client_id);
         $this->oidc->setClientSecret($this->client_secret);
+    }
     }
 
     // Generate and store state parameter for CSRF protection
@@ -273,7 +276,7 @@ class Descope_Wp_Public
         global $wp;
         if ( !is_user_logged_in() ) {
             ?>
-            <center><a href="<?php echo esc_url(site_url('/wp-login.php?action=oidc_login')); ?>">Login with OIDC</a></center>
+            <center><a href="<?php echo esc_url(site_url('/wp-login.php?action=oidc_login')); ?>">Login</a></center>
             <?php
         }
         else {
@@ -491,7 +494,7 @@ class Descope_Wp_Public
             'scope' => 'openid profile email phone descope.claims descope.custom_claims',
             'response_type' => 'code'
         ]);
-
+        if (isset($_POST['token_endpoint'])) {
         $response = wp_remote_post($this->token_endpoint, [
             'headers' => $headers,
             'body' => $body
@@ -506,8 +509,9 @@ class Descope_Wp_Public
             if (isset($tokenResponse->access_token)) {
                 $_SESSION['access_token'] = $tokenResponse->access_token;
             } else {
-                //echo 'Error: No access token received. Response: ' . $response_body;
-            }
+                echo 'Error: No access token received. Response: ' . $response_body;
+            }            
+        }
         }
     }
 }
