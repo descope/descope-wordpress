@@ -68,12 +68,11 @@ class Descope_Wp_Public
         add_shortcode('oidc_login_form', array($this, 'descope_login_form'));
         add_shortcode('descope_wc', array($this, 'descope_web_component'));
         add_shortcode('saml_login_form', array($this, 'descope_saml_login_form'));
+        add_shortcode('logout_button', array($this, 'descope_logout_button'));
         
         add_action('login_form_oidc_callback', array($this, 'descope_oidc_callback'));
         add_action('init', array($this, 'descope_init_sso'));
 
-        // Clean up session on WordPress logout
-        add_action('wp_logout', array($this, 'descope_end_session'));
         add_action('init', array($this, 'register_shortcodes'));
     }
 
@@ -93,7 +92,8 @@ class Descope_Wp_Public
             'nonce' => wp_create_nonce('custom_nonce'),
             'siteUrl' => get_site_url(),
             'clientId' => $this->client_id,
-            'flowId' => $this->flowId
+            'flowId' => $this->flowId,
+            'logoutUrl' => wp_logout_url(home_url())
         ));
     }
 
@@ -281,7 +281,7 @@ class Descope_Wp_Public
         }
         else {
             ?>
-            <center><a href="<?php echo wp_logout_url( home_url()); ?>" title="Logout">Logout</a></center>
+            <center><a class="logoutButton" title="Logout">Logout</a></center>
             <?php
         }
         $output_string = ob_get_contents();
@@ -378,7 +378,21 @@ class Descope_Wp_Public
         }
         else {
             ?>
-            <center><a href="<?php echo wp_logout_url( home_url()); ?>" title="Logout">Logout</a></center>
+            <center><a class="logoutButton" title="Logout">Logout</a></center>
+            <?php
+        }
+        $output_string = ob_get_contents();
+        ob_end_clean();
+        return $output_string;
+    }
+
+    public function descope_logout_button()
+    {
+        ob_start();
+        global $wp;
+        if ( is_user_logged_in() ) {
+            ?>
+            <center><a class="logoutButton" title="Logout">Logout</a></center>
             <?php
         }
         $output_string = ob_get_contents();

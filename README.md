@@ -49,6 +49,10 @@ Add the `[saml_login_form]` or `[oidc_login_form]` shortcode to your main page t
 
 Add the `[onetap_form]` shortcode to your page to add Google One Tap to your WordPress site. Follow the steps [here](https://docs.descope.com/web-development-platforms/setup-guides/wordpress#google-one-tap).
 
+### Logout
+
+Add the `[logout_button]` shortcode to your page to add a logout button to your WordPress site.
+
 ### Documentation
 
 Refer to our [documentation](https://docs.descope.com/web-development-platforms/setup-guides/wordpress) for more information on setting up Descope flows, SAML/OIDC SSO, and Google One Tap in your Wordpress site.

@@ -26,8 +26,6 @@ jQuery(document).ready(function () {
                 nonce: descope_ajax_object.nonce
             },
             success: function (response) {
-                console.log(response);
-
                 if (response.success && !hasReloaded) {
                     // Redirect or reload after successful login
                     hasReloaded = true;  // Set the flag
@@ -45,18 +43,13 @@ jQuery(document).ready(function () {
     async function handleUserDetails() {
         const user = await sdk.me();
         const sessionToken = sdk.getSessionToken();
-        console.log("Session Token:", sessionToken);
-        console.log("User Data:", user.data);
         sendFormData(sessionToken, user.data);
     }
 
     const refreshToken = sdk.getRefreshToken();
     const validRefreshToken = refreshToken && !sdk.isJwtExpired(refreshToken);
 
-    if (validRefreshToken) {
-        console.log("Valid refresh token found. Logging in...");
-        //handleUserDetails();
-    } else {
+    if (!validRefreshToken) {
         const container = document.getElementById("descope-flow-container");
         container.innerHTML = `<descope-wc style="outline: none;" project-id=${projectId} flow-id=${flowId} ></descope-wc>`;
         const wcElement = document.getElementsByTagName('descope-wc')[0];
@@ -75,10 +68,10 @@ jQuery(document).ready(function () {
     }
 
     // Add logout functionality
-    jQuery(".logoutButton").click(function () {
+    jQuery(".logoutButton").click(function (event) {
         logout().then((resp) => {
-            // Redirect back to home page
-            window.location = descope_ajax_object.siteUrl;
+            // After descope logout process completes, redirect to the wordpress logout url
+            window.location = descope_ajax_object.logoutUrl;
         });
 
         async function logout() {
