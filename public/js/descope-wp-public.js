@@ -48,9 +48,12 @@ jQuery(document).ready(function () {
 
     const refreshToken = sdk.getRefreshToken();
     const validRefreshToken = refreshToken && !sdk.isJwtExpired(refreshToken);
+    const container = document.getElementById("descope-flow-container");
 
-    if (!validRefreshToken) {
-        const container = document.getElementById("descope-flow-container");
+    //If validRefreshToken is false, and container exists on the page add this code
+    //   When user only uses [oidc_login_form] shortcode but does not use [descope_wc], the #descope-flow-container is never added to the page and script
+    //   Errors out before adding the .logoutButton.click() listener, breaking the link
+    if (!validRefreshToken &&  container != null) {        
         container.innerHTML = `<descope-wc style="outline: none;" project-id=${projectId} flow-id=${flowId} ></descope-wc>`;
         const wcElement = document.getElementsByTagName('descope-wc')[0];
 
@@ -68,7 +71,7 @@ jQuery(document).ready(function () {
     }
 
     // Add logout functionality
-    jQuery(".logoutButton").click(function (event) {
+    jQuery(".logoutButton").click(function (event) {        
         logout().then((resp) => {
             // After descope logout process completes, redirect to the wordpress logout url
             window.location = descope_ajax_object.logoutUrl;
