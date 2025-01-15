@@ -74,6 +74,7 @@ class Descope_Wp_Public
         add_action('init', array($this, 'descope_init_sso'));
 
         add_action('init', array($this, 'register_shortcodes'));
+        add_action('wp_logout', array($this, 'descope_end_session'));
     }
 
     public function enqueue_styles()
@@ -116,19 +117,13 @@ class Descope_Wp_Public
     {
         session_destroy();
 
-        // $this->auth->processSLO(false, $_SESSION['samlUserdata']);
-        ?>
-        <script>
-        logout().then((resp) => {
-            // Redirect back to home page
-            window.location = location.reload();
-        });
-
-        async function logout() {
-            const resp = await sdk.logout();
-        }
-        </script>
-        <?php
+        //backup in case jquery on click event does not attach properly
+        if (isset($_COOKIE['DSR'])) {
+            unset($_COOKIE['DSR']);            
+        }  
+        if (isset($_COOKIE['DS'])) {
+            unset($_COOKIE['DS']);            
+        }  
     }
 
     // Initialize OIDC client

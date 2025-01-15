@@ -48,9 +48,9 @@ jQuery(document).ready(function () {
 
     const refreshToken = sdk.getRefreshToken();
     const validRefreshToken = refreshToken && !sdk.isJwtExpired(refreshToken);
+    const container = document.getElementById("descope-flow-container");
 
-    if (!validRefreshToken) {
-        const container = document.getElementById("descope-flow-container");
+    if (!validRefreshToken &&  container != null) {
         container.innerHTML = `<descope-wc style="outline: none;" project-id=${projectId} flow-id=${flowId} ></descope-wc>`;
         const wcElement = document.getElementsByTagName('descope-wc')[0];
 
