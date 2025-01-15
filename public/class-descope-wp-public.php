@@ -74,6 +74,7 @@ class Descope_Wp_Public
         add_action('init', array($this, 'descope_init_sso'));
 
         add_action('init', array($this, 'register_shortcodes'));
+        add_action('wp_logout', array($this, 'descope_end_session'));
     }
 
     public function enqueue_styles()
@@ -114,7 +115,12 @@ class Descope_Wp_Public
     // Destroy PHP session on logout
     public function descope_end_session()
     {
-        session_destroy();
+        session_destroy();        
+        // Delete the secure "DSR" cookie
+        if (isset($_COOKIE['DSR'])) {
+            unset($_COOKIE['DSR']);            
+        }        
+        setcookie('DSR', '', time() - 3600, '/', parse_url(site_url( '', null), PHP_URL_HOST));
 
         // $this->auth->processSLO(false, $_SESSION['samlUserdata']);
         ?>
