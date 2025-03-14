@@ -1,5 +1,7 @@
 jQuery(document).ready(function () {
     const projectId = descope_ajax_object.clientId;
+    const dynamicFields = descope_ajax_object.dynamicFields;
+    
     // get flow Id from shortcode & default to sign up or in if not present
     const flowId = descope_ajax_object.flowId ? descope_ajax_object.flowId : 'sign-up-or-in';
     const sdk = Descope({
@@ -10,11 +12,11 @@ jQuery(document).ready(function () {
 
     let hasReloaded = false;  // To prevent multiple reloads
 
-    async function sendFormData(sessionToken, userDetails) {
+    async function sendFormData(sessionToken, userDetails, decodedToken) {
         if (!sessionToken || sdk.isJwtExpired(sessionToken)) {
             console.log("Session token is invalid or expired.");
             return;
-        }
+        }            
 
         jQuery.ajax({
             url: descope_ajax_object.ajax_url,
@@ -23,6 +25,8 @@ jQuery(document).ready(function () {
                 action: 'create_wp_user',
                 sessionToken: sessionToken,
                 userDetails: JSON.stringify(userDetails),
+                decodedToken: JSON.stringify(decodedToken),
+                dynamicFields: JSON.stringify(dynamicFields),
                 nonce: descope_ajax_object.nonce
             },
             success: function (response) {
@@ -43,7 +47,8 @@ jQuery(document).ready(function () {
     async function handleUserDetails() {
         const user = await sdk.me();
         const sessionToken = sdk.getSessionToken();
-        sendFormData(sessionToken, user.data);
+        const decodedToken = jwt_decode(sessionToken);
+        sendFormData(sessionToken, user.data, decodedToken);
     }
 
     const refreshToken = sdk.getRefreshToken();
@@ -51,7 +56,13 @@ jQuery(document).ready(function () {
     const container = document.getElementById("descope-flow-container");
 
     if (!validRefreshToken &&  container != null) {
-        container.innerHTML = `<descope-wc style="outline: none;" project-id=${projectId} flow-id=${flowId} ></descope-wc>`;
+        container.innerHTML = 
+        `<descope-wc 
+            style="outline: none;" 
+            project-id=${projectId} 
+            flow-id=${flowId} 
+            >
+        </descope-wc>`;
         const wcElement = document.getElementsByTagName('descope-wc')[0];
 
         const onSuccess = (e) => {
