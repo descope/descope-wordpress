@@ -18,7 +18,7 @@ class Descope_Wp_Public
     private $auth;
     private $flowId;
     private $providerId;
-
+    private $dynamic_fields;
     public function __construct($plugin_name, $version)
     {
         $this->plugin_name = $plugin_name;
@@ -30,7 +30,7 @@ class Descope_Wp_Public
         $this->token_endpoint = get_option('token_endpoint');
         $this->userinfo_endpoint = get_option('userinfo_endpoint');
         $this->descope_metadata = get_option('descope_metadata');
-
+        $this->dynamic_fields = get_option('dynamic_fields');
         $spBaseUrl = site_url();
         
         if($this->descope_metadata){
@@ -84,8 +84,9 @@ class Descope_Wp_Public
 
     public function enqueue_scripts()
     {
-        wp_enqueue_script('descope-web-component', 'https://unpkg.com/@descope/web-component@latest/dist/index.js', array('jquery'), $this->version, false);
-        wp_enqueue_script('descope-web-js', 'https://unpkg.com/@descope/web-js-sdk@latest/dist/index.umd.js', array('jquery'), $this->version, false);
+        wp_enqueue_script('descope-web-component', 'https://unpkg.com/@descope/web-component@3.21.0/dist/index.js', array('jquery'), $this->version, false);
+        wp_enqueue_script('descope-web-js', 'https://unpkg.com/@descope/web-js-sdk@1.16.0/dist/index.umd.js', array('jquery'), $this->version, false);
+        wp_enqueue_script('jwt-decode', 'https://unpkg.com/jwt-decode@3.1.2/build/jwt-decode.js', array('jquery'), $this->version, false);
         wp_enqueue_script($this->plugin_name, plugin_dir_url(__FILE__) . 'js/descope-wp-public.js', array('jquery'), $this->version, false);
 
         wp_localize_script($this->plugin_name, 'descope_ajax_object', array(
@@ -94,6 +95,7 @@ class Descope_Wp_Public
             'siteUrl' => get_site_url(),
             'clientId' => $this->client_id,
             'flowId' => $this->flowId,
+            'dynamicFields' => $this->dynamic_fields,
             'logoutUrl' => wp_logout_url(home_url())
         ));
     }
@@ -349,9 +351,9 @@ class Descope_Wp_Public
             $this->auth->login();
             $_SESSION['AuthNRequestID'] = $this->auth->getLastRequestID();
         }
-    ?>
-    <div id="descope-flow-container" style="outline: none;"></div>
-    <?php
+        ?>
+            <div id="descope-flow-container" style="outline: none;"></div>
+        <?php
         $output_string = ob_get_contents();
         ob_end_clean();
         return $output_string;
@@ -449,15 +451,16 @@ class Descope_Wp_Public
         check_ajax_referer('custom_nonce', 'nonce');
 
         $user_details = json_decode(stripslashes($_POST['userDetails']), true);
+        $decoded_token = json_decode(stripslashes($_POST['decodedToken']), true);
         $session_token = sanitize_text_field($_POST['sessionToken']);
-
+        $fields = json_decode(stripslashes($_POST['dynamicFields']), true);
+        
         if (!$user_details || !$session_token) {
             wp_send_json_error(array('message' => 'Invalid user details or session token.'));
         }
 
         // Extract user information from $user_details
         $email = sanitize_email($user_details['email']);
-        // $username = sanitize_user($user_details['username']);
         $username = sanitize_user($user_details['email']);
         $password = wp_generate_password();
 
@@ -468,9 +471,15 @@ class Descope_Wp_Public
             if (is_wp_error($user_id)) {
                 wp_send_json_error(array('message' => 'User creation failed.'));
             }
-
             // Optionally update user meta or roles
             update_user_meta($user_id, 'session_token', $session_token);
+
+            foreach ($fields as $item) {
+                $descope_field = $item['descope_field'];
+                $wp_field = $item['wp_field'];
+                $custom_attribute_value = $decoded_token[$descope_field] ?? 'Not Found';
+                update_user_meta($user_id, $wp_field, $custom_attribute_value);
+            }
 
             // Auto login the user
             wp_set_current_user($user_id);
@@ -479,6 +488,14 @@ class Descope_Wp_Public
         } else {
             // If user exists, log them in
             $user = get_user_by('email', $email);
+
+            foreach ($fields as $item) {
+                $descope_field = $item['descope_field'];
+                $wp_field = $item['wp_field'];
+                $custom_attribute_value = $decoded_token[$descope_field] ?? 'Not Found';
+                update_user_meta($user->ID, $wp_field, $custom_attribute_value);
+            }
+
             wp_set_current_user($user->ID);
             wp_set_auth_cookie($user->ID, true);
             do_action('wp_login', $user->user_login, $user);

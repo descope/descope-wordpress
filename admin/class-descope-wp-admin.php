@@ -204,13 +204,9 @@ class Descope_Wp_Admin
             foreach ($customAttributes as $attribute) {
                 $descope_field = $attribute['descope_field'];
                 $wp_field = $attribute['wp_field'];
-                //$userMeta[$descope_field] = $wp_field;
                 $userMeta[$descope_field] = get_user_meta($user->ID, $wp_field, true);
             }
         }
-
-        // Add user_url key
-        //$userMeta['website'] = get_the_author_meta('user_url', $user->ID);
 
         $user_data = [
             "loginId" => $user->user_login,
