@@ -11,7 +11,7 @@ $entityID = get_option('entity_id', null);
 $ssoURL = get_option('sso_url', null);
 $signingCertificate = get_option('x_certificate', null);
 $projectID = get_option('project_id', null);
-$baseUrl = get_option('base_url', "https://api.descope.com");
+$baseUrl = get_option('base_url');
 
 $tab = isset($_GET['tab']) ? $_GET['tab'] : $default_tab;
 
