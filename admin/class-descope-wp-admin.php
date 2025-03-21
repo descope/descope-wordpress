@@ -220,15 +220,23 @@ class Descope_Wp_Admin
             "customAttributes" => empty($userMeta) ? null : $userMeta
         ];
 
-        $descope_api_url_create = 'https://api.descope.com/v1/mgmt/user/create';
-        $descope_api_url_search = 'https://api.descope.com/v1/mgmt/user/search';
-        $descope_api_url_update = 'https://api.descope.com/v1/mgmt/user/update';
-
         $project_id = get_option('client_id'); // Project ID
-        $management_key = get_option('management_key'); // Management Key
+        
+        if (strlen($project_id) >= 32) {
+            $region = substr($project_id, 1, 4);
+            $api_base_url = "https://api." . $region . ".descope.com";
+        } else {
+            $api_base_url = "https://api.descope.com";
+        }
+
+        $user_sync_management_key = get_option('user_sync_management_key'); // Management Key
+
+        $descope_api_url_create = $api_base_url . '/v1/mgmt/user/create';
+        $descope_api_url_search = $api_base_url . '/v1/mgmt/user/search';
+        $descope_api_url_update = $api_base_url . '/v1/mgmt/user/update';
 
         // Concatenate project ID and management key to form authorization token
-        $authorization_token = $project_id . ':' . $management_key;
+        $authorization_token = $project_id . ':' . $user_sync_management_key;
 
         // Search for user by loginId
         $search_data = ["loginId" => $user_data['loginId']];

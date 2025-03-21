@@ -1,14 +1,23 @@
 jQuery(document).ready(function () {
     const projectId = descope_ajax_object.clientId;
     const dynamicFields = descope_ajax_object.dynamicFields;
-    
+    const baseUrl = descope_ajax_object.baseUrl;
+
     // get flow Id from shortcode & default to sign up or in if not present
     const flowId = descope_ajax_object.flowId ? descope_ajax_object.flowId : 'sign-up-or-in';
-    const sdk = Descope({
+    const providerId = descope_ajax_object.providerId ? descope_ajax_object.providerId : 'google';
+
+    const sdkConfig = {
         projectId: projectId,
         persistTokens: true,
-        autoRefresh: false,
-    });
+        autoRefresh: true,
+    };
+
+    if (baseUrl) {
+        sdkConfig.baseUrl = baseUrl;
+    }
+
+    const sdk = Descope(sdkConfig);
 
     let hasReloaded = false;  // To prevent multiple reloads
 
@@ -29,13 +38,11 @@ jQuery(document).ready(function () {
                 dynamicFields: JSON.stringify(dynamicFields),
                 nonce: descope_ajax_object.nonce
             },
-            success: function (response) {
+            success: function (response) {            
                 if (response.success && !hasReloaded) {
                     // Redirect or reload after successful login
                     hasReloaded = true;  // Set the flag
                     location.reload();
-                } else {
-                    console.error(response.data.message);
                 }
             },
             error: function (xhr, status, error) {
@@ -51,18 +58,25 @@ jQuery(document).ready(function () {
         sendFormData(sessionToken, user.data, decodedToken);
     }
 
+    async function handleOneTap(providerId) {
+        const resp = await sdk.fedcm.oneTap(providerId);
+        sdk.refresh();
+        handleUserDetails();
+    }
+
     const refreshToken = sdk.getRefreshToken();
     const validRefreshToken = refreshToken && !sdk.isJwtExpired(refreshToken);
     const container = document.getElementById("descope-flow-container");
+    const isAnonymousUser = refreshToken ? (jwt_decode(refreshToken)["danu"] === true) : false;
 
-    if (!validRefreshToken &&  container != null) {
-        container.innerHTML = 
-        `<descope-wc 
-            style="outline: none;" 
-            project-id=${projectId} 
-            flow-id=${flowId} 
-            >
-        </descope-wc>`;
+    const onetap_container = document.getElementById("descope-onetap-container");
+
+    if (!validRefreshToken && onetap_container != null) {
+        handleOneTap(providerId);
+    }
+
+    if (!validRefreshToken && container != null) {
+        container.innerHTML = `<descope-wc style="outline: none;" project-id=${projectId} flow-id=${flowId} ></descope-wc>`;
         const wcElement = document.getElementsByTagName('descope-wc')[0];
 
         const onSuccess = (e) => {
@@ -76,6 +90,11 @@ jQuery(document).ready(function () {
             wcElement.addEventListener('success', onSuccess);
             wcElement.addEventListener('error', onError);
         }
+    }
+
+    const userProfileContainer = document.getElementById("descope-user-profile-container");
+    if (validRefreshToken && !isAnonymousUser && userProfileContainer != null) {
+        userProfileContainer.innerHTML = `<descope-user-profile-widget project-id=${projectId} widget-id="user-profile-widget"/></descope-user-profile-widget>`;
     }
 
     // Add logout functionality

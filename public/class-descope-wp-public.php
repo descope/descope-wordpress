@@ -7,6 +7,7 @@ class Descope_Wp_Public
     private $plugin_name;
     private $version;
     private $oidc;
+    private $baseUrl;
     private $client_id;
     private $client_secret;
     private $redirect_uri;
@@ -19,12 +20,14 @@ class Descope_Wp_Public
     private $flowId;
     private $providerId;
     private $dynamic_fields;
+    
     public function __construct($plugin_name, $version)
     {
         $this->plugin_name = $plugin_name;
         $this->version = $version;
 
         $this->client_id = get_option('client_id');
+        $this->baseUrl = get_option('base_url');
         $this->client_secret = get_option('client_secret');
         $this->redirect_uri = site_url('/wp-login.php?action=oidc_callback');
         $this->token_endpoint = get_option('token_endpoint');
@@ -69,6 +72,7 @@ class Descope_Wp_Public
         add_shortcode('descope_wc', array($this, 'descope_web_component'));
         add_shortcode('saml_login_form', array($this, 'descope_saml_login_form'));
         add_shortcode('logout_button', array($this, 'descope_logout_button'));
+        add_shortcode('user_profile_widget', array($this, 'descope_user_profile_widget'));
         
         add_action('login_form_oidc_callback', array($this, 'descope_oidc_callback'));
         add_action('init', array($this, 'descope_init_sso'));
@@ -87,6 +91,7 @@ class Descope_Wp_Public
         wp_enqueue_script('descope-web-component', 'https://unpkg.com/@descope/web-component@3.21.0/dist/index.js', array('jquery'), $this->version, false);
         wp_enqueue_script('descope-web-js', 'https://unpkg.com/@descope/web-js-sdk@1.16.0/dist/index.umd.js', array('jquery'), $this->version, false);
         wp_enqueue_script('jwt-decode', 'https://unpkg.com/jwt-decode@3.1.2/build/jwt-decode.js', array('jquery'), $this->version, false);
+        wp_enqueue_script('descope-user-profile-widget', 'https://static.descope.com/npm/@descope/user-profile-widget@0.0.93/dist/index.js', array('jquery'), $this->version, false);
         wp_enqueue_script($this->plugin_name, plugin_dir_url(__FILE__) . 'js/descope-wp-public.js', array('jquery'), $this->version, false);
 
         wp_localize_script($this->plugin_name, 'descope_ajax_object', array(
@@ -94,9 +99,11 @@ class Descope_Wp_Public
             'nonce' => wp_create_nonce('custom_nonce'),
             'siteUrl' => get_site_url(),
             'clientId' => $this->client_id,
+            'baseUrl' => $this->baseUrl,
             'flowId' => $this->flowId,
             'dynamicFields' => $this->dynamic_fields,
-            'logoutUrl' => wp_logout_url(home_url())
+            'logoutUrl' => wp_logout_url(home_url()),
+            'providerId' => $this->providerId
         ));
     }
 
@@ -226,42 +233,19 @@ class Descope_Wp_Public
         global $wp;
         $this->providerId = $atts['provider_id'] ?? 'google';
         if ( !is_user_logged_in() ) {
-            if (isset($_COOKIE['wordpress_descope_email'])) {
-
-                $user_email = $_COOKIE['wordpress_descope_email'];
-                $user = get_user_by('email', $user_email);
-    
-                if (!$user) {
-                    $user_id = wp_create_user($user_email, wp_generate_password(), $user_email);
-                    $user = get_user_by('id', $user_id);
-                }
-    
-                wp_set_current_user($user->ID);
-                wp_set_auth_cookie($user->ID);
-
-                //unset user email
-                unset($_COOKIE['wordpress_descope_email']);
-                setcookie('wordpress_descope_email', '', time() - 3600, '/');
-
-                wp_redirect(home_url());
-                
+            ob_start();
+            if (isset($_GET['sso'])) {
+                $this->auth->login();
+                $_SESSION['AuthNRequestID'] = $this->auth->getLastRequestID();
             }
-            else if (is_home()) {
-                $this->enqueue_one_tap_script();
-            }
+            ?>
+                <div id="descope-onetap-container" style="outline: none;"></div>
+            <?php
+            $output_string = ob_get_contents();
+            ob_end_clean();
+            return $output_string;
        }
     }
-
-    public function enqueue_one_tap_script() {
-        wp_register_script('one-tap-comp', plugin_dir_url(__FILE__) . 'js/one-tap-comp.js', ['descope-web-js'], '1.0', true);
-        wp_enqueue_script('one-tap-comp');
-    
-        // Pass parameters to the script
-        wp_localize_script('one-tap-comp', 'oneTapParams', array(
-            'projectId' => $this->client_id,
-            'providerId' => $this->providerId
-        ));
-    }    
 
     // Render OIDC login form shortcode
     public function descope_login_form() {
@@ -353,6 +337,16 @@ class Descope_Wp_Public
         }
         ?>
             <div id="descope-flow-container" style="outline: none;"></div>
+        <?php
+        $output_string = ob_get_contents();
+        ob_end_clean();
+        return $output_string;
+    }
+    public function descope_user_profile_widget($atts)
+    {
+        ob_start();
+        ?>
+            <div id="descope-user-profile-container" style="outline: none;"></div>
         <?php
         $output_string = ob_get_contents();
         ob_end_clean();
@@ -474,6 +468,7 @@ class Descope_Wp_Public
             // Optionally update user meta or roles
             update_user_meta($user_id, 'session_token', $session_token);
 
+            // iterate through custom field mapping and update user meta
             foreach ($fields as $item) {
                 $descope_field = $item['descope_field'];
                 $wp_field = $item['wp_field'];
@@ -489,6 +484,7 @@ class Descope_Wp_Public
             // If user exists, log them in
             $user = get_user_by('email', $email);
 
+            // iterate through custom field mapping and update user meta
             foreach ($fields as $item) {
                 $descope_field = $item['descope_field'];
                 $wp_field = $item['wp_field'];

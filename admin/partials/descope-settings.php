@@ -11,6 +11,8 @@ $entityID = get_option('entity_id', null);
 $ssoURL = get_option('sso_url', null);
 $signingCertificate = get_option('x_certificate', null);
 $projectID = get_option('project_id', null);
+$baseUrl = get_option('base_url');
+$userSyncManagementKey = get_option('user_sync_management_key');
 
 $tab = isset($_GET['tab']) ? $_GET['tab'] : $default_tab;
 
@@ -103,6 +105,8 @@ if (isset($_POST['save-config'])) {
             update_option('dynamic_fields', $new);
         } else {
             update_option('client_id', esc_attr($_POST['client_id']));
+            update_option('base_url', esc_attr($_POST['base_url']));
+            update_option('user_sync_management_key', esc_attr($_POST['user_sync_management_key']));
         }
     }
 }
@@ -279,6 +283,26 @@ $dynamic_fields = get_option('dynamic_fields');
                             <td>
                                 <input type="text" name="client_id" class="regular-text"
                                     value="<?php echo get_option('client_id'); ?>" />
+                            </td>
+                        </tr>
+                        <tr>
+                            <th>
+                                <label><?php _e('Base URL', 'descope-wp'); ?></label>
+                            </th>
+                            <td>
+                                <input type="text" name="base_url" class="regular-text"
+                                    value="<?php echo get_option('base_url'); ?>" />
+                                <p class="description"><?php _e('Optional. Leave empty unless you have set up a custom base URL in your Descope project.', 'descope-wp'); ?></p>
+                            </td>
+                        </tr>
+                        <tr>
+                            <th>
+                                <label><?php _e('Management Key', 'descope-wp'); ?></label>
+                            </th>
+                            <td>
+                                <input type="text" name="user_sync_management_key" class="regular-text"
+                                    value="<?php echo get_option('user_sync_management_key'); ?>" />
+                                <p class="description"><?php _e('Used for syncing users to Descope.', 'descope-wp'); ?></p>
                             </td>
                         </tr>
                         <?php
