@@ -221,11 +221,14 @@ class Descope_Wp_Admin
         ];
 
         $project_id = get_option('client_id'); // Project ID
-        if ($project_id && substr($project_id, 1, 3) === 'euc') {
-            $api_base_url = "https://api.euc1.descope.com";
+        
+        if (strlen($project_id) >= 32) {
+            $region = substr($project_id, 1, 4);
+            $api_base_url = "https://api." . $region . ".descope.com";
         } else {
             $api_base_url = "https://api.descope.com";
         }
+
         $user_sync_management_key = get_option('user_sync_management_key'); // Management Key
 
         $descope_api_url_create = $api_base_url . '/v1/mgmt/user/create';
