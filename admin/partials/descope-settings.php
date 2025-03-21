@@ -11,6 +11,7 @@ $entityID = get_option('entity_id', null);
 $ssoURL = get_option('sso_url', null);
 $signingCertificate = get_option('x_certificate', null);
 $projectID = get_option('project_id', null);
+$baseUrl = get_option('base_url', "https://api.descope.com");
 
 $tab = isset($_GET['tab']) ? $_GET['tab'] : $default_tab;
 
@@ -103,6 +104,7 @@ if (isset($_POST['save-config'])) {
             update_option('dynamic_fields', $new);
         } else {
             update_option('client_id', esc_attr($_POST['client_id']));
+            update_option('base_url', esc_attr($_POST['base_url']));
         }
     }
 }
@@ -279,6 +281,16 @@ $dynamic_fields = get_option('dynamic_fields');
                             <td>
                                 <input type="text" name="client_id" class="regular-text"
                                     value="<?php echo get_option('client_id'); ?>" />
+                            </td>
+                        </tr>
+                        <tr>
+                            <th>
+                                <label><?php _e('Base URL', 'descope-wp'); ?></label>
+                            </th>
+                            <td>
+                                <input type="text" name="base_url" class="regular-text"
+                                    value="<?php echo get_option('base_url'); ?>" />
+                                <p class="description"><?php _e('Optional. Leave empty unless you have set up a custom base URL in your Descope project.', 'descope-wp'); ?></p>
                             </td>
                         </tr>
                         <?php
