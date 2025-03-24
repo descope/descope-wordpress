@@ -2,7 +2,6 @@ jQuery(document).ready(function () {
     const projectId = descope_ajax_object.clientId;
     const dynamicFields = descope_ajax_object.dynamicFields;
     const baseUrl = descope_ajax_object.baseUrl;
-
     // get flow Id from shortcode & default to sign up or in if not present
     const flowId = descope_ajax_object.flowId ? descope_ajax_object.flowId : 'sign-up-or-in';
     const providerId = descope_ajax_object.providerId ? descope_ajax_object.providerId : 'google';
@@ -75,7 +74,7 @@ jQuery(document).ready(function () {
         handleOneTap(providerId);
     }
 
-    if (!validRefreshToken && container != null) {
+    if ((!validRefreshToken || isAnonymousUser) && container != null) {
         container.innerHTML = `<descope-wc style="outline: none;" project-id=${projectId} flow-id=${flowId} ></descope-wc>`;
         const wcElement = document.getElementsByTagName('descope-wc')[0];
 
