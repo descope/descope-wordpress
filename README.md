@@ -53,6 +53,14 @@ Add the `[onetap_form]` shortcode to your page to add Google One Tap to your Wor
 
 Add the `[logout_button]` shortcode to your page to add a logout button to your WordPress site.
 
+### User Profile Widget
+
+Add the `[user_profile_widget]` shortcode to your page to add the Descope user profile widget to your WordPress site.
+
+### Protected Page
+
+Add the `[protected_page]` shortcode to your page to redirect users to a specific page if they are not logged in. You will specify the page path you want to redirect the users to in the shortcode itself, for example: `[protected_page redirect_page_path="/login-page/"]`.
+
 ### Documentation
 
 Refer to our [documentation](https://docs.descope.com/web-development-platforms/setup-guides/wordpress) for more information on setting up Descope flows, SAML/OIDC SSO, and Google One Tap in your Wordpress site.

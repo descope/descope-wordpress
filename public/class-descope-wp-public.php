@@ -20,6 +20,7 @@ class Descope_Wp_Public
     private $flowId;
     private $providerId;
     private $dynamic_fields;
+    private $redirectPagePath;
     
     public function __construct($plugin_name, $version)
     {
@@ -35,7 +36,7 @@ class Descope_Wp_Public
         $this->descope_metadata = get_option('descope_metadata');
         $this->dynamic_fields = get_option('dynamic_fields');
         $spBaseUrl = site_url();
-        
+
         if($this->descope_metadata){
             $this->settingsInfo = array (
                 'sp' => array (
@@ -103,7 +104,8 @@ class Descope_Wp_Public
             'flowId' => $this->flowId,
             'dynamicFields' => $this->dynamic_fields,
             'logoutUrl' => wp_logout_url(home_url()),
-            'providerId' => $this->providerId
+            'providerId' => $this->providerId,
+            'redirectPagePath' => $this->redirectPagePath
         ));
     }
 
@@ -111,6 +113,7 @@ class Descope_Wp_Public
     public function register_shortcodes() {
         add_shortcode('oidc_login_form', array($this, 'descope_login_form'));
         add_shortcode('onetap_form', array($this, 'descope_onetap'));
+        add_shortcode('protected_page', array($this, 'descope_protected_page'));
     }
 
     // Start PHP session if not already started
@@ -227,6 +230,15 @@ class Descope_Wp_Public
             error_log('OIDC callback error: ' . $e->getMessage());
             wp_die('Login failed: ' . $e->getMessage());
         }
+    }
+
+    public function descope_protected_page($atts) {
+        global $wp;
+        $this->redirectPagePath = $atts['redirect_page_path'];
+        if ( !is_user_logged_in() ) {
+            wp_redirect(home_url().$this->redirectPagePath);
+            exit;
+       }
     }
 
     public function descope_onetap($atts) {
