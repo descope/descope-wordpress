@@ -106,8 +106,8 @@ class Descope_Wp_Admin
     public function descope_settings_page()
     {
         add_menu_page(
-            __('Descope Settings', 'descope-wp'),
-            __('Descope Settings', 'descope-wp'),
+            esc_html__('Descope Settings', 'descope-wp'),
+            esc_html__('Descope Settings', 'descope-wp'),
             'manage_options',
             'descope-settings',
             array($this, 'descope_settings_render_settings')
@@ -122,9 +122,9 @@ class Descope_Wp_Admin
     public function descope_import_notice()
     {
         if (get_transient('descope_import_success')) {
-?>
+            ?>
             <div class="notice notice-success is-dismissible">
-                <p><?php _e('User successfully imported to Descope.', 'descope-wp'); ?></p>
+                <p><?php echo esc_html__('User successfully imported to Descope.', 'descope-wp'); ?></p>
             </div>
         <?php
             delete_transient('descope_import_success');
@@ -133,7 +133,7 @@ class Descope_Wp_Admin
         if (get_transient('descope_import_error')) {
         ?>
             <div class="notice notice-error is-dismissible">
-                <p><?php echo get_transient('descope_import_error'); ?></p>
+                <p><?php echo esc_html(get_transient('descope_import_error')); ?></p>
             </div>
 <?php
             delete_transient('descope_import_error');
@@ -328,7 +328,7 @@ class Descope_Wp_Admin
     {
         $schedules['every_day'] = array(
             'interval' => 86400, // Seconds set 
-            'display'  => esc_html__('Every 24 Hours'),
+            'display'  => 'Every 24 Hours',
         );
         return $schedules;
     }
@@ -342,7 +342,7 @@ class Descope_Wp_Admin
         $log_file = WP_CONTENT_DIR . '/descope-logs/descope.log';
 
         echo '<div class="wrap">';
-        echo '<h3>' . __('Sync Users Log', 'descope-wp') . '</h3>';
+        echo '<h3>' . esc_html__('Sync Users Log', 'descope-wp') . '</h3>';
         echo '<div id="log-content">';
         if (file_exists($log_file)) {
             $log_content = file_get_contents($log_file);
@@ -351,10 +351,10 @@ class Descope_Wp_Admin
                 echo esc_html($log_content);
                 echo '</pre>';
             } else {
-                echo '<p>' . __('No log found.', 'descope-wp') . '</p>';
+                echo '<p>' . esc_html__('No log found.', 'descope-wp') . '</p>';
             }
         } else {
-            echo '<p>' . __('No log found.', 'descope-wp') . '</p>';
+            echo '<p>' . esc_html__('No log found.', 'descope-wp') . '</p>';
         }
         echo '</div>';
         echo '</div>';
@@ -387,7 +387,7 @@ class Descope_Wp_Admin
             $progress = ($synced_users / $total_users) * 100;
 
             // Output progress
-            echo json_encode([
+            echo wp_json_encode([
                 'progress' => $progress,
                 'message' => "Synced $synced_users of $total_users users."
             ]);

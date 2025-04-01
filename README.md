@@ -8,7 +8,6 @@
 
 ### Requirements
 
-- [Most recent version of WordPress](https://wordpress.org/news/category/releases/)
 - [Descope Project](https://www.descope.com/sign-up)
 
 ### Installation

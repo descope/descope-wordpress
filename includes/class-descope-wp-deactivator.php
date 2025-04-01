@@ -15,7 +15,7 @@ class Descope_Wp_Deactivator
 
     public static function deactivate()
     {
-        $timestamp = wp_next_scheduled('sync_subscribers_to_descope_cron_job');
-        wp_unschedule_event($timestamp, 'sync_subscribers_to_descope_cron_job');
+        $timestamp = wp_next_scheduled('descope_sync_subscribers_to_descope_cron_job');
+        wp_unschedule_event($timestamp, 'descope_sync_subscribers_to_descope_cron_job');
     }
 }

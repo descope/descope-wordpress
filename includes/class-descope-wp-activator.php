@@ -15,8 +15,8 @@ class Descope_Wp_Activator
 {
     public static function activate()
     {
-        if (!wp_next_scheduled('sync_subscribers_to_descope_cron_job')) {
-            wp_schedule_event(time(), 'every_day', 'sync_subscribers_to_descope_cron_job');
+        if (!wp_next_scheduled('descope_sync_subscribers_to_descope_cron_job')) {
+            wp_schedule_event(time(), 'every_day', 'descope_sync_subscribers_to_descope_cron_job');
         }
     }
 }

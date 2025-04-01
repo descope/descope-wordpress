@@ -89,8 +89,8 @@ class Descope_Wp_Public
 
     public function enqueue_scripts()
     {
-        wp_enqueue_script('descope-web-component', 'https://unpkg.com/@descope/web-component@3.21.0/dist/index.js', array('jquery'), $this->version, false);
-        wp_enqueue_script('descope-web-js', 'https://unpkg.com/@descope/web-js-sdk@1.16.0/dist/index.umd.js', array('jquery'), $this->version, false);
+        wp_enqueue_script('descope-web-component', 'https://descopecdn.com/npm/@descope/web-component@3.21.0/dist/index.js', array('jquery'), $this->version, false);
+        wp_enqueue_script('descope-web-js', 'https://descopecdn.com/npm/@descope/web-js-sdk@1.16.0/dist/index.umd.js', array('jquery'), $this->version, false);
         wp_enqueue_script('jwt-decode', 'https://unpkg.com/jwt-decode@3.1.2/build/jwt-decode.js', array('jquery'), $this->version, false);
         wp_enqueue_script('descope-user-profile-widget', 'https://static.descope.com/npm/@descope/user-profile-widget@0.0.93/dist/index.js', array('jquery'), $this->version, false);
         wp_enqueue_script($this->plugin_name, plugin_dir_url(__FILE__) . 'js/descope-wp-public.js', array('jquery'), $this->version, false);
@@ -269,7 +269,9 @@ class Descope_Wp_Public
         global $wp;
         if ( !is_user_logged_in() ) {
             ?>
-            <center><a href="<?php echo esc_url(site_url('/wp-login.php?action=oidc_login')); ?>">Login</a></center>
+            <center><a href="<?php echo esc_url(site_url('/wp-login.php?action=oidc_login')); ?>">
+                <?php echo esc_html_e('Login', 'descope-wp'); ?>
+            </a></center>
             <?php
         }
         else {
@@ -423,7 +425,7 @@ class Descope_Wp_Public
             if (!empty($errors)) {
                 echo '<p>',implode(', ', $errors),'</p>';
                 if ($this->auth->getSettings()->isDebugActive()) {
-                    echo '<p>'.htmlentities($this->auth->getLastErrorReason()).'</p>';
+                    echo '<p>' . wp_kses($this->auth->getLastErrorReason(), array('p' => array(), 'br' => array())) . '</p>';
                 }
             }
         
