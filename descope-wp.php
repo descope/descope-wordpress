@@ -30,7 +30,6 @@ if (!defined('WPINC')) {
  * Current plugin version.
  */
 define('DESCOPE_WP_VERSION', '1.0.0');
-define('DESCOPE_LOG_FILE', WP_CONTENT_DIR . '/descope-logs/descope.log');
 define('DESCOPE_METADATA_FILE', plugin_dir_path( __DIR__ ) . 'descope-wp/metadata.xml');
 
 /**
