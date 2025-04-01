@@ -15,5 +15,7 @@
 <!-- This file should primarily consist of HTML with a little bit of PHP. -->
 <?php
 
+if ( ! defined( 'ABSPATH' ) ) exit; // Exit if accessed directly
+
 $this->basic_client();
 ?>

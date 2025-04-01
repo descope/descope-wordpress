@@ -3,6 +3,8 @@
  *  SP Single Logout Service Endpoint
  */
 
+if ( ! defined( 'ABSPATH' ) ) exit; // Exit if accessed directly
+
 session_start();
 
 require_once dirname(__DIR__).'/_toolkit_loader.php';
