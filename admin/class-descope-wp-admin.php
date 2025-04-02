@@ -107,8 +107,8 @@ class Descope_Wp_Admin
     public function descope_settings_page()
     {
         add_menu_page(
-            esc_html__('Descope Settings', 'descope-wp'),
-            esc_html__('Descope Settings', 'descope-wp'),
+            esc_html__('Descope Settings', 'descope'),
+            esc_html__('Descope Settings', 'descope'),
             'manage_options',
             'descope-settings',
             array($this, 'descope_settings_render_settings')
@@ -125,7 +125,7 @@ class Descope_Wp_Admin
         if (get_transient('descope_import_success')) {
             ?>
             <div class="notice notice-success is-dismissible">
-                <p><?php echo esc_html__('User successfully imported to Descope.', 'descope-wp'); ?></p>
+                <p><?php echo esc_html__('User successfully imported to Descope.', 'descope'); ?></p>
             </div>
         <?php
             delete_transient('descope_import_success');
@@ -197,7 +197,7 @@ class Descope_Wp_Admin
         $phone = empty($phone) ? null : $phone;
 
         // Fetch dynamic fields configuration
-        $customAttributes = get_option('dynamic_fields');
+        $customAttributes = get_option('descope_dynamic_fields');
         $userMeta = array();
 
         if ($customAttributes) {
@@ -221,7 +221,7 @@ class Descope_Wp_Admin
             "customAttributes" => empty($userMeta) ? null : $userMeta
         ];
 
-        $project_id = get_option('client_id'); // Project ID
+        $project_id = get_option('descope_client_id');
         
         if (strlen($project_id) >= 32) {
             $region = substr($project_id, 1, 4);
@@ -230,7 +230,7 @@ class Descope_Wp_Admin
             $api_base_url = "https://api.descope.com";
         }
 
-        $user_sync_management_key = get_option('user_sync_management_key'); // Management Key
+        $user_sync_management_key = get_option('descope_user_sync_management_key');
 
         $descope_api_url_create = $api_base_url . '/v1/mgmt/user/create';
         $descope_api_url_search = $api_base_url . '/v1/mgmt/user/search';
@@ -341,7 +341,7 @@ class Descope_Wp_Admin
         }
 
         echo '<div class="wrap">';
-        echo '<h3>' . esc_html__('Sync Users Log', 'descope-wp') . '</h3>';
+        echo '<h3>' . esc_html__('Sync Users Log', 'descope') . '</h3>';
         echo '<div id="log-content">';
         
         $logs = get_option('descope_sync_logs', array());
@@ -353,7 +353,7 @@ class Descope_Wp_Admin
             }
             echo '</pre>';
         } else {
-            echo '<p>' . esc_html__('No log entries found.', 'descope-wp') . '</p>';
+            echo '<p>' . esc_html__('No log entries found.', 'descope') . '</p>';
         }
         
         echo '</div>';
@@ -407,6 +407,6 @@ class Descope_Wp_Admin
         delete_option('descope_sync_logs');
         update_option('descope_sync_logs', array());
         
-        wp_send_json_success(['message' => __('Log cleared successfully.', 'descope-wp')]);
+        wp_send_json_success(['message' => __('Log cleared successfully.', 'descope')]);
     }
 }

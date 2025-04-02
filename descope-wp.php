@@ -90,8 +90,14 @@ require plugin_dir_path(__FILE__) . 'includes/class-descope-wp.php';
  */
 function descope_run_wp()
 {
-
     $plugin = new Descope_Wp();
+    
+    // Check if migration is needed
+    if (version_compare(get_option('descope_db_version', '1.0.0'), '1.1.0', '<')) {
+        require_once plugin_dir_path(__FILE__) . 'includes/class-descope-wp-activator.php';
+        Descope_Wp_Activator::migrate_options();
+    }
+    
     $plugin->run();
 }
 descope_run_wp();
