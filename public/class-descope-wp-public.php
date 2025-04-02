@@ -80,10 +80,19 @@ class Descope_Wp_Public
         add_action('init', array($this, 'descope_init_oidc'));
         add_action('login_form_oidc_login', array($this, 'descope_oidc_login'));
 
+        //kept old shortcodes for backward compatibility
+        add_shortcode('descope_oidc_login_form', array($this, 'descope_login_form'));
         add_shortcode('oidc_login_form', array($this, 'descope_login_form'));
+
         add_shortcode('descope_wc', array($this, 'descope_web_component'));
+
+        add_shortcode('descope_saml_login_form', array($this, 'descope_saml_login_form'));
         add_shortcode('saml_login_form', array($this, 'descope_saml_login_form'));
+
+        add_shortcode('descope_logout_button', array($this, 'descope_logout_button'));
         add_shortcode('logout_button', array($this, 'descope_logout_button'));
+
+        add_shortcode('descope_user_profile_widget', array($this, 'descope_user_profile_widget'));
         add_shortcode('user_profile_widget', array($this, 'descope_user_profile_widget'));
         
         add_action('login_form_oidc_callback', array($this, 'descope_oidc_callback'));
@@ -122,8 +131,11 @@ class Descope_Wp_Public
 
     // Register Shortcodes
     public function register_shortcodes() {
-        add_shortcode('oidc_login_form', array($this, 'descope_login_form'));
+        //kept old shortcodes for backward compatibility
+        add_shortcode('descope_onetap_form', array($this, 'descope_onetap'));
         add_shortcode('onetap_form', array($this, 'descope_onetap'));
+
+        add_shortcode('descope_protected_page', array($this, 'descope_protected_page'));
         add_shortcode('protected_page', array($this, 'descope_protected_page'));
     }
 

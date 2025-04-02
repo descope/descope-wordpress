@@ -42,23 +42,23 @@ The **flow_id** is the id of the Descope flow that you want to implement in your
 
 ### SAML/OIDC SSO
 
-Add the `[saml_login_form]` or `[oidc_login_form]` shortcode to your main page to add SSO capabilities. Follow the steps [here](https://docs.descope.com/web-development-platforms/setup-guides/wordpress#samloidc-sso).
+Add the `[descope_saml_login_form]` or `[descope_oidc_login_form]` shortcode to your main page to add SSO capabilities. Follow the steps [here](https://docs.descope.com/web-development-platforms/setup-guides/wordpress#samloidc-sso).
 
 ### Google One Tap
 
-Add the `[onetap_form]` shortcode to your page to add Google One Tap to your WordPress site. Follow the steps [here](https://docs.descope.com/web-development-platforms/setup-guides/wordpress#google-one-tap).
+Add the `[descope_onetap_form]` shortcode to your page to add Google One Tap to your WordPress site. Follow the steps [here](https://docs.descope.com/web-development-platforms/setup-guides/wordpress#google-one-tap).
 
 ### Logout
 
-Add the `[logout_button]` shortcode to your page to add a logout button to your WordPress site.
+Add the `[descope_logout_button]` shortcode to your page to add a logout button to your WordPress site.
 
 ### User Profile Widget
 
-Add the `[user_profile_widget]` shortcode to your page to add the Descope user profile widget to your WordPress site.
+Add the `[descope_user_profile_widget]` shortcode to your page to add the Descope user profile widget to your WordPress site.
 
 ### Protected Page
 
-Add the `[protected_page]` shortcode to your page to redirect users to a specific page if they are not logged in. You will specify the page path you want to redirect the users to in the shortcode itself, for example: `[protected_page redirect_page_path="/login-page/"]`.
+Add the `[descope_protected_page]` shortcode to your page to redirect users to a specific page if they are not logged in. You will specify the page path you want to redirect the users to in the shortcode itself, for example: `[descope_protected_page redirect_page_path="/login-page/"]`.
 
 ### Documentation
 
