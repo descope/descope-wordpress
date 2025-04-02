@@ -150,7 +150,7 @@ class Descope_Wp
         // $this->loader->add_action('admin_notices', $plugin_admin, 'descope_import_notice');
         $this->loader->add_filter('cron_schedules', $plugin_admin, 'add_descope_cron_schedules');
         $this->loader->add_action('sync_subscribers_to_descope_cron_job', $plugin_admin, 'sync_all_subscribers_to_descope');
-        $this->loader->add_action('init', $plugin_admin, 'create_descope_log_directory');
+        
         $this->loader->add_action('wp_ajax_sync_users_to_descope', $plugin_admin, 'sync_users_to_descope_callback');
         $this->loader->add_action('wp_ajax_clear_log_file', $plugin_admin, 'clear_log_file_callback');
     }

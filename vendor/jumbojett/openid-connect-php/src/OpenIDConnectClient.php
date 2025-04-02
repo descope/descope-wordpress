@@ -3,7 +3,7 @@
  *
  * Copyright MITRE 2020
  *
- * OpenIDConnectClient for PHP5
+ * OpenIDConnectClient for PHP7+
  * Author: Michael Jett <mjett@mitre.org>
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may
@@ -25,7 +25,6 @@ namespace Jumbojett;
 
 use Error;
 use Exception;
-use phpseclib3\Crypt\PublicKeyLoader;
 use phpseclib3\Crypt\RSA;
 use phpseclib3\Math\BigInteger;
 use stdClass;
@@ -145,7 +144,7 @@ class OpenIDConnectClient
     /**
      * @var int|null Response code from the server
      */
-    private $responseCode;
+    protected $responseCode;
 
     /**
      * @var string|null Content type from the server
@@ -380,7 +379,7 @@ class OpenIDConnectClient
             $accessToken = $_REQUEST['access_token'] ?? null;
 
             // Do an OpenID Connect session check
-	    if (!isset($_REQUEST['state']) || ($_REQUEST['state'] !== $this->getState())) {            
+    	    if (!isset($_REQUEST['state']) || ($_REQUEST['state'] !== $this->getState())) {
                 throw new OpenIDConnectClientException('Unable to determine state');
             }
 
@@ -469,12 +468,7 @@ class OpenIDConnectClient
             $claims = $this->decodeJWT($logout_token, 1);
 
             // Verify the signature
-            if (!$this->getProviderConfigValue('jwks_uri')) {
-                throw new OpenIDConnectClientException('Back-channel logout: Unable to verify signature due to no jwks_uri being defined');
-            }
-            if (!$this->verifyJWTSignature($logout_token)) {
-                throw new OpenIDConnectClientException('Back-channel logout: Unable to verify JWT signature');
-            }
+            $this->verifySignatures($logout_token);
 
             // Verify Logout Token Claims
             if ($this->verifyLogoutTokenClaims($claims)) {
@@ -696,7 +690,8 @@ class OpenIDConnectClient
         if (isset($_SERVER['HTTP_X_FORWARDED_PORT'])) {
             $port = (int)$_SERVER['HTTP_X_FORWARDED_PORT'];
         } elseif (isset($_SERVER['SERVER_PORT'])) {
-            $port = $_SERVER['SERVER_PORT'];
+            # keep this case - even if some tool claim it is unnecessary
+            $port = (int)$_SERVER['SERVER_PORT'];
         } elseif ($protocol === 'https') {
             $port = 443;
         } else {
@@ -1134,7 +1129,12 @@ class OpenIDConnectClient
                     $jwk = $header->jwk;
                     $this->verifyJWKHeader($jwk);
                 } else {
-                    $jwks = json_decode($this->fetchURL($this->getProviderConfigValue('jwks_uri')), false);
+                    $jwksUri = $this->getProviderConfigValue('jwks_uri');
+                    if (!$jwksUri) {
+                        throw new OpenIDConnectClientException ('Unable to verify signature due to no jwks_uri being defined');
+                    }
+
+                    $jwks = json_decode($this->fetchURL($jwksUri), false);
                     if ($jwks === NULL) {
                         throw new OpenIDConnectClientException('Error decoding JSON from jwks_uri');
                     }
@@ -1164,9 +1164,6 @@ class OpenIDConnectClient
      */
     public function verifySignatures(string $jwt)
     {
-        if (!$this->getProviderConfigValue('jwks_uri')) {
-            throw new OpenIDConnectClientException ('Unable to verify signature due to no jwks_uri being defined');
-        }
         if (!$this->verifyJWTSignature($jwt)) {
             throw new OpenIDConnectClientException ('Unable to verify signature');
         }
@@ -1206,6 +1203,7 @@ class OpenIDConnectClient
         }
         return (($this->validateIssuer($claims->iss))
             && (($claims->aud === $this->clientID) || in_array($this->clientID, $claims->aud, true))
+            && ($claims->sub === $this->getIdTokenPayload()->sub)
             && (!isset($claims->nonce) || $claims->nonce === $this->getNonce())
             && ( !isset($claims->exp) || ((is_int($claims->exp)) && ($claims->exp >= time() - $this->leeway)))
             && ( !isset($claims->nbf) || ((is_int($claims->nbf)) && ($claims->nbf <= time() + $this->leeway)))
@@ -1223,12 +1221,11 @@ class OpenIDConnectClient
     /**
      * @param string $jwt encoded JWT
      * @param int $section the section we would like to decode
-     * @return object
+     * @return object|string|null
      */
-    protected function decodeJWT(string $jwt, int $section = 0): stdClass {
-
+    protected function decodeJWT(string $jwt, int $section = 0) {
         $parts = explode('.', $jwt);
-        return json_decode(base64url_decode($parts[$section]), false);
+        return json_decode(base64url_decode($parts[$section] ?? ''), false);
     }
 
     /**
@@ -1690,7 +1687,10 @@ class OpenIDConnectClient
         return json_decode($this->fetchURL($revocation_endpoint, $post_params, $headers), false);
     }
 
-    public function getClientName(): string
+    /**
+     * @return string|null
+     */
+    public function getClientName()
     {
         return $this->clientName;
     }
@@ -1700,14 +1700,14 @@ class OpenIDConnectClient
     }
 
     /**
-     * @return string
+     * @return string|null
      */
     public function getClientID() {
         return $this->clientID;
     }
 
     /**
-     * @return string
+     * @return string|null
      */
     public function getClientSecret() {
         return $this->clientSecret;
@@ -1722,17 +1722,30 @@ class OpenIDConnectClient
         $this->accessToken = $accessToken;
     }
 
-    public function getAccessToken(): string
+    /**
+     * @return string|null
+     */
+    public function getAccessToken()
     {
         return $this->accessToken;
     }
 
-    public function getRefreshToken(): string
+    /**
+     * @return string|null
+     */
+    public function getRefreshToken()
     {
         return $this->refreshToken;
     }
 
-    public function getIdToken(): string
+    public function setIdToken(string $idToken) {
+        $this->idToken = $idToken;
+    }
+
+    /**
+     * @return string|null
+     */
+    public function getIdToken()
     {
         return $this->idToken;
     }
@@ -1745,21 +1758,21 @@ class OpenIDConnectClient
     }
 
     /**
-     * @return object
+     * @return object|string|null
      */
     public function getAccessTokenPayload() {
         return $this->decodeJWT($this->accessToken, 1);
     }
 
     /**
-     * @return object
+     * @return object|string|null
      */
     public function getIdTokenHeader() {
         return $this->decodeJWT($this->idToken);
     }
 
     /**
-     * @return object
+     * @return object|string|null
      */
     public function getIdTokenPayload() {
         return $this->decodeJWT($this->idToken, 1);

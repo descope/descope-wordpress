@@ -3,6 +3,8 @@
  *  SP Single Logout Service Endpoint
  */
 
+// should be able to be accessed directly
+
 session_start();
 
 require_once dirname(__DIR__).'/_toolkit_loader.php';

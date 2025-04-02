@@ -22,7 +22,7 @@ class Descope_Wp_i18n {
 	public function load_plugin_textdomain() {
 
 		load_plugin_textdomain(
-			'descope-wp',
+			'descope',
 			false,
 			dirname( dirname( plugin_basename( __FILE__ ) ) ) . '/languages/'
 		);

@@ -27,41 +27,52 @@ class Descope_Wp_Public
         $this->plugin_name = $plugin_name;
         $this->version = $version;
 
-        $this->client_id = get_option('client_id');
-        $this->baseUrl = get_option('base_url');
-        $this->client_secret = get_option('client_secret');
+        $this->client_id = get_option('descope_client_id');
+        $this->baseUrl = get_option('descope_base_url');
+        $this->client_secret = get_option('descope_client_secret');
         $this->redirect_uri = site_url('/wp-login.php?action=oidc_callback');
-        $this->token_endpoint = get_option('token_endpoint');
-        $this->userinfo_endpoint = get_option('userinfo_endpoint');
+        $this->token_endpoint = get_option('descope_token_endpoint');
+        $this->userinfo_endpoint = get_option('descope_userinfo_endpoint');
         $this->descope_metadata = get_option('descope_metadata');
-        $this->dynamic_fields = get_option('dynamic_fields');
+        $this->dynamic_fields = get_option('descope_dynamic_fields');
         $spBaseUrl = site_url();
 
         if($this->descope_metadata){
             $this->settingsInfo = array (
+                'strict' => true,
+                'debug' => false,
                 'sp' => array (
-                    'entityId' => get_option('entity_id'),
+                    'entityId' => site_url(),
                     'assertionConsumerService' => array (
                         'url' => $spBaseUrl.'/?acs',
+                        'binding' => 'urn:oasis:names:tc:SAML:2.0:bindings:HTTP-POST'
                     ),
                     'singleLogoutService' => array (
                         'url' => $spBaseUrl.'/?sls',
+                        'binding' => 'urn:oasis:names:tc:SAML:2.0:bindings:HTTP-Redirect'
                     ),
                     'NameIDFormat' => 'urn:oasis:names:tc:SAML:2.0:nameid-format:transient',
                 ),
                 'idp' => array (
-                    'entityId' => get_option('entity_id'),
+                    'entityId' => get_option('descope_entity_id'),
                     'singleSignOnService' => array (
-                        'url' => get_option('sso_url'),
+                        'url' => get_option('descope_sso_url'),
+                        'binding' => 'urn:oasis:names:tc:SAML:2.0:bindings:HTTP-Redirect'
                     ),
                     'singleLogoutService' => array (
-                        'url' => get_option('sso_url'),
+                        'url' => get_option('descope_sso_url'),
+                        'binding' => 'urn:oasis:names:tc:SAML:2.0:bindings:HTTP-Redirect'
                     ),
-                    'x509cert' => str_replace(' ', '',get_option('x_certificate')),
+                    'x509cert' => str_replace(' ', '', get_option('descope_x_certificate')),
                 ),
             );
 
-            $this->auth = new OneLogin_Saml2_Auth($this->settingsInfo);
+            try {
+                $this->auth = new OneLogin_Saml2_Auth($this->settingsInfo);
+            } catch (Exception $e) {
+                error_log('SAML initialization error: ' . $e->getMessage());
+                error_log('SAML settings: ' . print_r($this->settingsInfo, true));
+            }
         }
 
         // Initialize session and OIDC client on WordPress init
@@ -69,10 +80,19 @@ class Descope_Wp_Public
         add_action('init', array($this, 'descope_init_oidc'));
         add_action('login_form_oidc_login', array($this, 'descope_oidc_login'));
 
+        //kept old shortcodes for backward compatibility
+        add_shortcode('descope_oidc_login_form', array($this, 'descope_login_form'));
         add_shortcode('oidc_login_form', array($this, 'descope_login_form'));
+
         add_shortcode('descope_wc', array($this, 'descope_web_component'));
+
+        add_shortcode('descope_saml_login_form', array($this, 'descope_saml_login_form'));
         add_shortcode('saml_login_form', array($this, 'descope_saml_login_form'));
+
+        add_shortcode('descope_logout_button', array($this, 'descope_logout_button'));
         add_shortcode('logout_button', array($this, 'descope_logout_button'));
+
+        add_shortcode('descope_user_profile_widget', array($this, 'descope_user_profile_widget'));
         add_shortcode('user_profile_widget', array($this, 'descope_user_profile_widget'));
         
         add_action('login_form_oidc_callback', array($this, 'descope_oidc_callback'));
@@ -89,8 +109,8 @@ class Descope_Wp_Public
 
     public function enqueue_scripts()
     {
-        wp_enqueue_script('descope-web-component', 'https://unpkg.com/@descope/web-component@3.21.0/dist/index.js', array('jquery'), $this->version, false);
-        wp_enqueue_script('descope-web-js', 'https://unpkg.com/@descope/web-js-sdk@1.16.0/dist/index.umd.js', array('jquery'), $this->version, false);
+        wp_enqueue_script('descope-web-component', 'https://descopecdn.com/npm/@descope/web-component@3.21.0/dist/index.js', array('jquery'), $this->version, false);
+        wp_enqueue_script('descope-web-js', 'https://descopecdn.com/npm/@descope/web-js-sdk@1.16.0/dist/index.umd.js', array('jquery'), $this->version, false);
         wp_enqueue_script('jwt-decode', 'https://unpkg.com/jwt-decode@3.1.2/build/jwt-decode.js', array('jquery'), $this->version, false);
         wp_enqueue_script('descope-user-profile-widget', 'https://static.descope.com/npm/@descope/user-profile-widget@0.0.93/dist/index.js', array('jquery'), $this->version, false);
         wp_enqueue_script($this->plugin_name, plugin_dir_url(__FILE__) . 'js/descope-wp-public.js', array('jquery'), $this->version, false);
@@ -99,10 +119,10 @@ class Descope_Wp_Public
             'ajax_url' => admin_url('admin-ajax.php'),
             'nonce' => wp_create_nonce('custom_nonce'),
             'siteUrl' => get_site_url(),
-            'clientId' => $this->client_id,
-            'baseUrl' => $this->baseUrl,
+            'clientId' => get_option('descope_client_id'),
+            'baseUrl' => get_option('descope_base_url'),
             'flowId' => $this->flowId,
-            'dynamicFields' => $this->dynamic_fields,
+            'dynamicFields' => get_option('descope_dynamic_fields'),
             'logoutUrl' => wp_logout_url(home_url()),
             'providerId' => $this->providerId,
             'redirectPagePath' => $this->redirectPagePath
@@ -111,8 +131,11 @@ class Descope_Wp_Public
 
     // Register Shortcodes
     public function register_shortcodes() {
-        add_shortcode('oidc_login_form', array($this, 'descope_login_form'));
+        //kept old shortcodes for backward compatibility
+        add_shortcode('descope_onetap_form', array($this, 'descope_onetap'));
         add_shortcode('onetap_form', array($this, 'descope_onetap'));
+
+        add_shortcode('descope_protected_page', array($this, 'descope_protected_page'));
         add_shortcode('protected_page', array($this, 'descope_protected_page'));
     }
 
@@ -141,27 +164,33 @@ class Descope_Wp_Public
     // Initialize OIDC client
     public function descope_init_oidc()
     { 
-        if (isset($_POST['client_id']) && isset($_POST['client_secret']) && isset($_POST['management_key']) && isset($_POST['issuer_url']) && isset($_POST['authorization_endpoint']) && isset($_POST['token_endpoint']) && isset($_POST['userinfo_endpoint'])) {
+        if (isset($_POST['descope_client_id']) && 
+            isset($_POST['descope_client_secret']) && 
+            isset($_POST['descope_management_key']) && 
+            isset($_POST['descope_issuer_url']) && 
+            isset($_POST['descope_authorization_endpoint']) && 
+            isset($_POST['descope_token_endpoint']) && 
+            isset($_POST['descope_userinfo_endpoint'])) {
 
-        // Initialize OpenID Connect client
-        $this->oidc = new OpenIDConnectClient(
-            get_option('authorization_endpoint'),
-            $this->client_id,
-            $this->client_secret
-        );
+            // Initialize OpenID Connect client
+            $this->oidc = new OpenIDConnectClient(
+                get_option('descope_authorization_endpoint'),
+                $this->client_id,
+                $this->client_secret
+            );
 
-        // Configure additional parameters
-        $this->oidc->providerConfigParam([
-            'token_endpoint' => $this->token_endpoint,
-            'userinfo_endpoint' => $this->userinfo_endpoint,
-        ]);
+            // Configure additional parameters
+            $this->oidc->providerConfigParam([
+                'token_endpoint' => $this->token_endpoint,
+                'userinfo_endpoint' => $this->userinfo_endpoint,
+            ]);
 
-        $this->oidc->setRedirectURL($this->redirect_uri);
-        $this->oidc->addScope(['openid', 'profile', 'email']);
-        $this->oidc->setResponseTypes(['code']);
-        $this->oidc->setClientID($this->client_id);
-        $this->oidc->setClientSecret($this->client_secret);
-    }
+            $this->oidc->setRedirectURL($this->redirect_uri);
+            $this->oidc->addScope(['openid', 'profile', 'email']);
+            $this->oidc->setResponseTypes(['code']);
+            $this->oidc->setClientID($this->client_id);
+            $this->oidc->setClientSecret($this->client_secret);
+        }
     }
 
     // Generate and store state parameter for CSRF protection
@@ -175,7 +204,7 @@ class Descope_Wp_Public
     // Redirect user to OIDC provider for authentication
     public function descope_oidc_login()
     {
-        $auth_url = get_option('authorization_endpoint') . '?' . http_build_query([
+        $auth_url = get_option('descope_authorization_endpoint') . '?' . http_build_query([
             'client_id' => $this->client_id,
             'redirect_uri' => site_url('/wp-login.php?action=oidc_callback'),
             'response_type' => 'code',
@@ -269,7 +298,9 @@ class Descope_Wp_Public
         global $wp;
         if ( !is_user_logged_in() ) {
             ?>
-            <center><a href="<?php echo esc_url(site_url('/wp-login.php?action=oidc_login')); ?>">Login</a></center>
+            <center><a href="<?php echo esc_url(site_url('/wp-login.php?action=oidc_login')); ?>">
+                <?php echo esc_html_e('Login', 'descope'); ?>
+            </a></center>
             <?php
         }
         else {
@@ -423,7 +454,7 @@ class Descope_Wp_Public
             if (!empty($errors)) {
                 echo '<p>',implode(', ', $errors),'</p>';
                 if ($this->auth->getSettings()->isDebugActive()) {
-                    echo '<p>'.htmlentities($this->auth->getLastErrorReason()).'</p>';
+                    echo '<p>' . wp_kses($this->auth->getLastErrorReason(), array('p' => array(), 'br' => array())) . '</p>';
                 }
             }
         
@@ -518,34 +549,37 @@ class Descope_Wp_Public
     {
         $client_credentials = base64_encode($this->client_id . ':' . $this->client_secret);
 
-        $headers = [
+        $headers = array(
             'Authorization' => 'Basic ' . $client_credentials,
             'Content-Type' => 'application/x-www-form-urlencoded'
-        ];
+        );
 
-        $body = http_build_query([
+        $body = array(
             'grant_type' => 'client_credentials',
             'scope' => 'openid profile email phone descope.claims descope.custom_claims',
             'response_type' => 'code'
-        ]);
-        if (isset($_POST['token_endpoint'])) {
-        $response = wp_remote_post($this->token_endpoint, [
-            'headers' => $headers,
-            'body' => $body
-        ]);
+        );
+        
+        if (isset($_POST['descope_token_endpoint'])) {
+            $response = wp_remote_post($this->token_endpoint, array(
+                'headers' => $headers,
+                'body' => $body,
+                'timeout' => 30
+            ));
 
-        if (is_wp_error($response)) {
-            echo 'Error: ' . $response->get_error_message();
-        } else {
+            if (is_wp_error($response)) {
+                error_log('Error: ' . $response->get_error_message());
+                return;
+            }
+
             $response_body = wp_remote_retrieve_body($response);
             $tokenResponse = json_decode($response_body);
 
             if (isset($tokenResponse->access_token)) {
                 $_SESSION['access_token'] = $tokenResponse->access_token;
             } else {
-                echo 'Error: No access token received. Response: ' . $response_body;
+                error_log('Error: No access token received. Response: ' . $response_body);
             }            
-        }
         }
     }
 }

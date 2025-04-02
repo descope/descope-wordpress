@@ -146,6 +146,7 @@ class Utils
 
         $oldEntityLoader = null;
         if (PHP_VERSION_ID < 80000) {
+            // only using libxml_disable_entity_loader for backward compatibility
             $oldEntityLoader = libxml_disable_entity_loader(false);
         }
         $res = $dom->schemaValidate($schemaFile);

@@ -81,23 +81,24 @@ class Descope_Wp_Admin
         wp_localize_script($this->plugin_name, 'descope_admin_ajax_object', array('ajax_url' => admin_url('admin-ajax.php'), 'security' => wp_create_nonce('sync_user_nonce')));
     }
 
-    public function create_descope_log_directory()
-    {
-        $custom_log_dir = WP_CONTENT_DIR . '/descope-logs';
-
-        if (!file_exists($custom_log_dir)) {
-            wp_mkdir_p($custom_log_dir);
-        }
-    }
-
     public function descope_log($message)
     {
-        if (defined('DESCOPE_LOG_FILE')) {
-            $timestamp = date('Y-m-d H:i:s'); // Current date and time
-            $log_message = "[$timestamp] $message";
-            error_log($log_message . PHP_EOL, 3, DESCOPE_LOG_FILE);
-        }
+        $timestamp = date('Y-m-d H:i:s');
+        $log_message = "[$timestamp] $message";
+        
+        // Get existing logs
+        $logs = get_option('descope_sync_logs', array());
+        
+        // Add new log entry at the beginning
+        array_unshift($logs, $log_message);
+        
+        // Keep only the last 100 entries
+        $logs = array_slice($logs, 0, 100);
+        
+        // Update the option
+        update_option('descope_sync_logs', $logs);
     }
+
     /**
      * Settings page
      *
@@ -106,8 +107,8 @@ class Descope_Wp_Admin
     public function descope_settings_page()
     {
         add_menu_page(
-            __('Descope Settings', 'descope-wp'),
-            __('Descope Settings', 'descope-wp'),
+            esc_html__('Descope Settings', 'descope'),
+            esc_html__('Descope Settings', 'descope'),
             'manage_options',
             'descope-settings',
             array($this, 'descope_settings_render_settings')
@@ -122,9 +123,9 @@ class Descope_Wp_Admin
     public function descope_import_notice()
     {
         if (get_transient('descope_import_success')) {
-?>
+            ?>
             <div class="notice notice-success is-dismissible">
-                <p><?php _e('User successfully imported to Descope.', 'descope-wp'); ?></p>
+                <p><?php echo esc_html__('User successfully imported to Descope.', 'descope'); ?></p>
             </div>
         <?php
             delete_transient('descope_import_success');
@@ -133,7 +134,7 @@ class Descope_Wp_Admin
         if (get_transient('descope_import_error')) {
         ?>
             <div class="notice notice-error is-dismissible">
-                <p><?php echo get_transient('descope_import_error'); ?></p>
+                <p><?php echo esc_html(get_transient('descope_import_error')); ?></p>
             </div>
 <?php
             delete_transient('descope_import_error');
@@ -196,7 +197,7 @@ class Descope_Wp_Admin
         $phone = empty($phone) ? null : $phone;
 
         // Fetch dynamic fields configuration
-        $customAttributes = get_option('dynamic_fields');
+        $customAttributes = get_option('descope_dynamic_fields');
         $userMeta = array();
 
         if ($customAttributes) {
@@ -220,7 +221,7 @@ class Descope_Wp_Admin
             "customAttributes" => empty($userMeta) ? null : $userMeta
         ];
 
-        $project_id = get_option('client_id'); // Project ID
+        $project_id = get_option('descope_client_id');
         
         if (strlen($project_id) >= 32) {
             $region = substr($project_id, 1, 4);
@@ -229,7 +230,7 @@ class Descope_Wp_Admin
             $api_base_url = "https://api.descope.com";
         }
 
-        $user_sync_management_key = get_option('user_sync_management_key'); // Management Key
+        $user_sync_management_key = get_option('descope_user_sync_management_key');
 
         $descope_api_url_create = $api_base_url . '/v1/mgmt/user/create';
         $descope_api_url_search = $api_base_url . '/v1/mgmt/user/search';
@@ -328,7 +329,7 @@ class Descope_Wp_Admin
     {
         $schedules['every_day'] = array(
             'interval' => 86400, // Seconds set 
-            'display'  => esc_html__('Every 24 Hours'),
+            'display'  => 'Every 24 Hours',
         );
         return $schedules;
     }
@@ -339,23 +340,22 @@ class Descope_Wp_Admin
             return;
         }
 
-        $log_file = WP_CONTENT_DIR . '/descope-logs/descope.log';
-
         echo '<div class="wrap">';
-        echo '<h3>' . __('Sync Users Log', 'descope-wp') . '</h3>';
+        echo '<h3>' . esc_html__('Sync Users Log', 'descope') . '</h3>';
         echo '<div id="log-content">';
-        if (file_exists($log_file)) {
-            $log_content = file_get_contents($log_file);
-            if (!empty($log_content)) {
-                echo '<pre style="background: #fff; padding: 10px; border: 1px solid #ccc; max-height: 600px; overflow: auto;">';
-                echo esc_html($log_content);
-                echo '</pre>';
-            } else {
-                echo '<p>' . __('No log found.', 'descope-wp') . '</p>';
+        
+        $logs = get_option('descope_sync_logs', array());
+        
+        if (!empty($logs)) {
+            echo '<pre style="background: #fff; padding: 10px; border: 1px solid #ccc; max-height: 600px; overflow: auto;">';
+            foreach ($logs as $log) {
+                echo esc_html($log) . "\n";
             }
+            echo '</pre>';
         } else {
-            echo '<p>' . __('No log found.', 'descope-wp') . '</p>';
+            echo '<p>' . esc_html__('No log entries found.', 'descope') . '</p>';
         }
+        
         echo '</div>';
         echo '</div>';
     }
@@ -387,7 +387,7 @@ class Descope_Wp_Admin
             $progress = ($synced_users / $total_users) * 100;
 
             // Output progress
-            echo json_encode([
+            echo wp_json_encode([
                 'progress' => $progress,
                 'message' => "Synced $synced_users of $total_users users."
             ]);
@@ -404,13 +404,9 @@ class Descope_Wp_Admin
     {
         check_ajax_referer('sync_user_nonce', 'security');
 
-        $log_file = WP_CONTENT_DIR . '/descope-logs/descope.log';
-
-        if (file_exists($log_file)) {
-            file_put_contents($log_file, '');
-            wp_send_json_success(['message' => __('Log cleared successfully.', 'descope-wp')]);
-        } else {
-            wp_send_json_error(['message' => __('Log file not found.', 'descope-wp')]);
-        }
+        delete_option('descope_sync_logs');
+        update_option('descope_sync_logs', array());
+        
+        wp_send_json_success(['message' => __('Log cleared successfully.', 'descope')]);
     }
 }

@@ -4,6 +4,8 @@
 // (can conflicts other autoloaders)
 // http://php.net/manual/en/language.oop5.autoload.php
 
+if ( ! defined( 'ABSPATH' ) ) exit; // Exit if accessed directly
+
 $libDir = __DIR__ . '/lib/Saml2/';
 $extlibDir = __DIR__ . '/extlib/';
 
