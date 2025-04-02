@@ -30,13 +30,26 @@ if (!defined('WPINC')) {
  * Current plugin version.
  */
 define('DESCOPE_WP_VERSION', '1.0.0');
-define('DESCOPE_METADATA_FILE', plugin_dir_path( __DIR__ ) . 'descope-wp/metadata.xml');
+
+// Use uploads directory for metadata.xml
+function descope_get_metadata_file_path() {
+    $upload_dir = wp_upload_dir();
+    $plugin_upload_dir = $upload_dir['basedir'] . '/descope';
+    
+    // Create the directory if it doesn't exist
+    if (!file_exists($plugin_upload_dir)) {
+        wp_mkdir_p($plugin_upload_dir);
+    }
+    
+    return $plugin_upload_dir . '/metadata.xml';
+}
+define('DESCOPE_METADATA_FILE', descope_get_metadata_file_path());
 
 /**
  * The code that runs during plugin activation.
  * This action is documented in includes/class-descope-wp-activator.php
  */
-function activate_descope_wp()
+function descope_activate_wp()
 {
     require_once plugin_dir_path(__FILE__) . 'includes/class-descope-wp-activator.php';
     Descope_Wp_Activator::activate();
@@ -46,14 +59,14 @@ function activate_descope_wp()
  * The code that runs during plugin deactivation.
  * This action is documented in includes/class-descope-wp-deactivator.php
  */
-function deactivate_descope_wp()
+function descope_deactivate_wp()
 {
     require_once plugin_dir_path(__FILE__) . 'includes/class-descope-wp-deactivator.php';
     Descope_Wp_Deactivator::deactivate();
 }
 
-register_activation_hook(__FILE__, 'activate_descope_wp');
-register_deactivation_hook(__FILE__, 'deactivate_descope_wp');
+register_activation_hook(__FILE__, 'descope_activate_wp');
+register_deactivation_hook(__FILE__, 'descope_deactivate_wp');
 
 /**
  * The core plugin class that is used to define internationalization,
@@ -75,10 +88,10 @@ require plugin_dir_path(__FILE__) . 'includes/class-descope-wp.php';
  *
  * @since    1.0.0
  */
-function run_descope_wp()
+function descope_run_wp()
 {
 
     $plugin = new Descope_Wp();
     $plugin->run();
 }
-run_descope_wp();
+descope_run_wp();

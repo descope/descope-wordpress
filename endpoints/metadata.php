@@ -4,6 +4,8 @@
  *  SP Metadata Endpoint
  */
 
+// should be able to be accessed directly
+
 if ( ! defined( 'ABSPATH' ) ) exit; // Exit if accessed directly
 
 require_once dirname(__DIR__).'/_toolkit_loader.php';

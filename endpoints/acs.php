@@ -4,7 +4,7 @@
  *  SP Assertion Consumer Service Endpoint
  */
 
-if ( ! defined( 'ABSPATH' ) ) exit; // Exit if accessed directly
+// should be able to be accessed directly
 
 session_start();
 

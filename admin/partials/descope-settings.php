@@ -64,20 +64,52 @@ if (isset($_POST['save-config'])) {
                 update_option('x_certificate', esc_attr(sanitize_text_field($signingCertificate)));
 
                 // Save Metadata XML back
-                $xml = simplexml_load_file(DESCOPE_METADATA_FILE);
+                $x_signingCertificate = str_replace(' ', '', esc_attr($signingCertificate));
+                $x_encryptionCertificate = str_replace(' ', '', esc_attr($encryptionCertificate));
+
+                update_option('x_certificate', esc_attr($x_signingCertificate));
+
+                // Check if file exists, try to load it or create new XML structure
+                if (file_exists(DESCOPE_METADATA_FILE)) {
+                    $xml = simplexml_load_file(DESCOPE_METADATA_FILE);
+                } else {
+                    // Create basic XML structure
+                    $xml = new SimpleXMLElement('<?xml version="1.0"?><EntityDescriptor xmlns="urn:oasis:names:tc:SAML:2.0:metadata"></EntityDescriptor>');
+                    $xml->addAttribute('entityID', $entityID);
+                    
+                    // Add required elements
+                    $idpDesc = $xml->addChild('IDPSSODescriptor');
+                    $idpDesc->addAttribute('protocolSupportEnumeration', 'urn:oasis:names:tc:SAML:2.0:protocol');
+                    
+                    // Add key descriptors
+                    for ($i = 0; $i < 2; $i++) {
+                        $keyDesc = $idpDesc->addChild('KeyDescriptor');
+                        $keyDesc->addAttribute('use', $i == 0 ? 'signing' : 'encryption');
+                        $keyInfo = $keyDesc->addChild('KeyInfo');
+                        $keyInfo->addAttribute('xmlns', 'http://www.w3.org/2000/09/xmldsig#');
+                        $x509Data = $keyInfo->addChild('X509Data');
+                        $x509Data->addChild('X509Certificate', '');
+                    }
+                    
+                    // Add SSO service
+                    $ssoService = $idpDesc->addChild('SingleSignOnService');
+                    $ssoService->addAttribute('Binding', 'urn:oasis:names:tc:SAML:2.0:bindings:HTTP-Redirect');
+                    $ssoService->addAttribute('Location', $ssoURL);
+                }
+
+                // Now update the XML if it exists
                 if ($xml) {
                     $xml['entityID'] = esc_attr($entityID);
-            
-                    $x_signingCertificate = str_replace(' ', '', esc_attr($signingCertificate));
-                    $x_encryptionCertificate = str_replace(' ', '', esc_attr($encryptionCertificate));
-            
-                    update_option('x_certificate', esc_attr($x_signingCertificate));
-            
-                    // Update 'X509Certificate' values without spaces
-                    $xml->IDPSSODescriptor->KeyDescriptor[0]->KeyInfo->X509Data->X509Certificate = $x_signingCertificate;
-                    $xml->IDPSSODescriptor->KeyDescriptor[1]->KeyInfo->X509Data->X509Certificate = $x_encryptionCertificate;
-            
-                    // Save the changes back to the XML file
+                    
+                    // Ensure elements exist
+                    if (isset($xml->IDPSSODescriptor->KeyDescriptor[0]->KeyInfo->X509Data->X509Certificate)) {
+                        $xml->IDPSSODescriptor->KeyDescriptor[0]->KeyInfo->X509Data->X509Certificate = $x_signingCertificate;
+                    }
+                    if (isset($xml->IDPSSODescriptor->KeyDescriptor[1]->KeyInfo->X509Data->X509Certificate)) {
+                        $xml->IDPSSODescriptor->KeyDescriptor[1]->KeyInfo->X509Data->X509Certificate = $x_encryptionCertificate;
+                    }
+                    
+                    // Save the XML file
                     $xml->asXML(DESCOPE_METADATA_FILE);
                 }
             }
