@@ -147,7 +147,7 @@ class Descope_Wp
         $this->loader->add_action('admin_enqueue_scripts', $plugin_admin, 'enqueue_scripts');
 
         $this->loader->add_action('admin_menu', $plugin_admin, 'descope_settings_page', 99);
-        // $this->loader->add_action('admin_notices', $plugin_admin, 'descope_import_notice');
+
         $this->loader->add_filter('cron_schedules', $plugin_admin, 'add_descope_cron_schedules');
         $this->loader->add_action('sync_subscribers_to_descope_cron_job', $plugin_admin, 'sync_all_subscribers_to_descope');
         

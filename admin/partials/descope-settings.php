@@ -204,9 +204,9 @@ $dynamic_fields = get_option('descope_dynamic_fields');
                                     <input type="hidden" name="descope_sso_url" class="regular-text"
                                         value="<?php echo esc_attr(isset($ssoURL) ? $ssoURL : get_option('descope_sso_url')); ?>" />
                                     <input type="hidden" name="descope_x_certificate" class="regular-text"
-                                        value="<?php echo isset($signingCertificate) ? $signingCertificate : get_option('descope_x_certificate'); ?>" />
+                                        value="<?php echo esc_attr(isset($signingCertificate) ? $signingCertificate : get_option('descope_x_certificate')); ?>" />
                                     <input type="hidden" name="descope_project_id" class="regular-text"
-                                        value="<?php echo isset($projectID) ? $projectID : get_option('descope_project_id'); ?>" />
+                                        value="<?php echo esc_attr(isset($projectID) ? $projectID : get_option('descope_project_id')); ?>" />
                                     <tr>
                                         <th>
                                             <label><?php echo esc_html__('Management Key', 'descope'); ?></label>
@@ -365,7 +365,7 @@ $dynamic_fields = get_option('descope_dynamic_fields');
         </table>
 
         <p class="submit">
-            <input type="hidden" name="nonce" value="<?php echo $nonce; ?>" />
+            <input type="hidden" name="nonce" value="<?php echo esc_attr($nonce); ?>" />
             <input type="submit" name="save-config" class="button button-primary btn" class="regular-text"
                 value="<?php echo esc_attr__('Save Configuration', 'descope'); ?>" />
         </p>

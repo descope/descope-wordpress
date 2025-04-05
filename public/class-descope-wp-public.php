@@ -111,7 +111,7 @@ class Descope_Wp_Public
     {
         wp_enqueue_script('descope-web-component', 'https://descopecdn.com/npm/@descope/web-component@3.21.0/dist/index.js', array('jquery'), $this->version, false);
         wp_enqueue_script('descope-web-js', 'https://descopecdn.com/npm/@descope/web-js-sdk@1.16.0/dist/index.umd.js', array('jquery'), $this->version, false);
-        wp_enqueue_script('jwt-decode', 'https://unpkg.com/jwt-decode@3.1.2/build/jwt-decode.js', array('jquery'), $this->version, false);
+        wp_enqueue_script('jwt-decode', 'js/jwt-decode.js', array('jquery'), $this->version, false);
         wp_enqueue_script('descope-user-profile-widget', 'https://static.descope.com/npm/@descope/user-profile-widget@0.0.93/dist/index.js', array('jquery'), $this->version, false);
         wp_enqueue_script($this->plugin_name, plugin_dir_url(__FILE__) . 'js/descope-wp-public.js', array('jquery'), $this->version, false);
 
@@ -197,7 +197,7 @@ class Descope_Wp_Public
     private function generateState()
     {
         $state = bin2hex(random_bytes(16));
-        $_SESSION['oidc_state'] = $state;
+        $_SESSION['oidc_state'] = sanitize_text_field($state);
         return $state;
     }
 
@@ -277,7 +277,7 @@ class Descope_Wp_Public
             ob_start();
             if (isset($_GET['sso'])) {
                 $this->auth->login();
-                $_SESSION['AuthNRequestID'] = $this->auth->getLastRequestID();
+                $_SESSION['AuthNRequestID'] = sanitize_text_field($this->auth->getLastRequestID());
             }
             ?>
                 <div id="descope-onetap-container" style="outline: none;"></div>
@@ -293,7 +293,7 @@ class Descope_Wp_Public
         ob_start();
         if (isset($_GET['sso'])) {
             $this->auth->login();
-            $_SESSION['AuthNRequestID'] = $this->auth->getLastRequestID();
+            $_SESSION['AuthNRequestID'] = sanitize_text_field($this->auth->getLastRequestID());
         }
         global $wp;
         if ( !is_user_logged_in() ) {
@@ -376,7 +376,7 @@ class Descope_Wp_Public
         ob_start();
         if (isset($_GET['sso'])) {
             $this->auth->login();
-            $_SESSION['AuthNRequestID'] = $this->auth->getLastRequestID();
+            $_SESSION['AuthNRequestID'] = sanitize_text_field($this->auth->getLastRequestID());
         }
         ?>
             <div id="descope-flow-container" style="outline: none;"></div>
@@ -487,18 +487,25 @@ class Descope_Wp_Public
     {
         check_ajax_referer('custom_nonce', 'nonce');
 
-        $user_details = json_decode(stripslashes($_POST['userDetails']), true);
-        $decoded_token = json_decode(stripslashes($_POST['decodedToken']), true);
+        // Sanitize user details
+        $user_details = map_deep(json_decode(stripslashes($_POST['userDetails']), true), 'sanitize_text_field');
+        
+        // Sanitize decoded token
+        $decoded_token = map_deep(json_decode(stripslashes($_POST['decodedToken']), true), 'sanitize_text_field');
+        
+        // Sanitize session token
         $session_token = sanitize_text_field($_POST['sessionToken']);
-        $fields = json_decode(stripslashes($_POST['dynamicFields']), true);
+        
+        // Sanitize dynamic fields
+        $fields = map_deep(json_decode(stripslashes($_POST['dynamicFields']), true), 'sanitize_text_field');
         
         if (!$user_details || !$session_token) {
             wp_send_json_error(array('message' => 'Invalid user details or session token.'));
         }
 
         // Extract user information from $user_details
-        $email = sanitize_email($user_details['email']);
-        $username = sanitize_user($user_details['email']);
+        $email = $user_details['email'];
+        $username = $user_details['email'];
         $password = wp_generate_password();
 
         // Check if user exists, if not, create a new one
@@ -561,6 +568,9 @@ class Descope_Wp_Public
         );
         
         if (isset($_POST['descope_token_endpoint'])) {
+            // Sanitize the endpoint
+            $token_endpoint = sanitize_text_field($_POST['descope_token_endpoint']);
+            
             $response = wp_remote_post($this->token_endpoint, array(
                 'headers' => $headers,
                 'body' => $body,
@@ -576,7 +586,8 @@ class Descope_Wp_Public
             $tokenResponse = json_decode($response_body);
 
             if (isset($tokenResponse->access_token)) {
-                $_SESSION['access_token'] = $tokenResponse->access_token;
+                // Sanitize before storing in session
+                $_SESSION['access_token'] = sanitize_text_field($tokenResponse->access_token);
             } else {
                 error_log('Error: No access token received. Response: ' . $response_body);
             }            

@@ -116,32 +116,6 @@ class Descope_Wp_Admin
     }
 
     /**
-     * Import notice
-     *
-     * @since    1.0.0
-     */
-    public function descope_import_notice()
-    {
-        if (get_transient('descope_import_success')) {
-            ?>
-            <div class="notice notice-success is-dismissible">
-                <p><?php echo esc_html__('User successfully imported to Descope.', 'descope'); ?></p>
-            </div>
-        <?php
-            delete_transient('descope_import_success');
-        }
-
-        if (get_transient('descope_import_error')) {
-        ?>
-            <div class="notice notice-error is-dismissible">
-                <p><?php echo esc_html(get_transient('descope_import_error')); ?></p>
-            </div>
-<?php
-            delete_transient('descope_import_error');
-        }
-    }
-
-    /**
      * Settings render
      *
      * @since    1.0.0
