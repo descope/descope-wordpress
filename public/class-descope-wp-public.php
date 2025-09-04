@@ -21,6 +21,7 @@ class Descope_Wp_Public
     private $providerId;
     private $dynamic_fields;
     private $redirectPagePath;
+    private $return_to;
     
     public function __construct($plugin_name, $version)
     {
@@ -193,23 +194,21 @@ class Descope_Wp_Public
         }
     }
 
-    // Generate and store state parameter for CSRF protection
-    private function generateState()
-    {
-        $state = bin2hex(random_bytes(16));
-        $_SESSION['oidc_state'] = $state;
-        return $state;
-    }
-
     // Redirect user to OIDC provider for authentication
     public function descope_oidc_login()
     {
+        // Generate state with return path
+        $state = base64_encode(json_encode([
+            'nonce' => wp_create_nonce('oidc_state'),
+            'return_to' => $this->return_to
+        ]));
+        
         $auth_url = get_option('descope_authorization_endpoint') . '?' . http_build_query([
             'client_id' => $this->client_id,
             'redirect_uri' => site_url('/wp-login.php?action=oidc_callback'),
             'response_type' => 'code',
             'scope' => 'openid profile email',
-            'state' => $this->generateState(),
+            'state' => $state,
         ]);
 
         wp_redirect($auth_url);
@@ -219,18 +218,29 @@ class Descope_Wp_Public
     // Callback function to handle OIDC provider response
     public function descope_oidc_callback()
     {
+        if (!session_id()) {
+            session_start();
+        }
         try {
-            // Verify state parameter to prevent CSRF
-            if (!isset($_GET['state']) || empty($_GET['state'])) {
-                throw new Exception('State parameter missing from callback');
-            }
+                            // Verify state parameter to prevent CSRF
+                if (!isset($_GET['state']) || empty($_GET['state'])) {
+                    throw new Exception('State parameter missing from callback');
+                }
 
-            $state = $_GET['state'];
-            $storedState = isset($_SESSION['oidc_state']) ? $_SESSION['oidc_state'] : null;
+                // Decode the state parameter
+                $state_data = json_decode(base64_decode($_GET['state']), true);
+                if (!$state_data) {
+                    throw new Exception('Invalid state format');
+                }
 
-            if ($state !== $storedState) {
-                throw new Exception('Invalid state parameter');
-            }
+                // Verify the nonce
+                if (!wp_verify_nonce($state_data['nonce'], 'oidc_state')) {
+                    throw new Exception('Invalid state nonce');
+                }
+
+                // Get the return URL from state
+                $return_path = isset($state_data['return_to']) ? $state_data['return_to'] : '';
+                $return_url = home_url($return_path);
 
             // Exchange authorization code for tokens
             $tokens = $this->exchangeAuthorizationCodeForTokens($_GET['code']);
@@ -249,10 +259,12 @@ class Descope_Wp_Public
                 $user = get_user_by('id', $user_id);
             }
 
-            // Log in the user and redirect
+            // Set up WordPress user
             wp_set_current_user($user->ID);
             wp_set_auth_cookie($user->ID);
-            wp_redirect(home_url());
+
+            // Use the stored return URL from earlier in the callback
+            wp_redirect($return_url?:home_url());
             exit;
         } catch (Exception $e) {
             // Handle errors gracefully
@@ -262,12 +274,25 @@ class Descope_Wp_Public
     }
 
     public function descope_protected_page($atts) {
-        global $wp;
+        // Parse attributes with defaults
+        $atts = shortcode_atts(array(
+            'redirect_page_path' => '',
+            'return_to' => ''
+        ), $atts);
+        
         $this->redirectPagePath = $atts['redirect_page_path'];
-        if ( !is_user_logged_in() ) {
-            wp_redirect(home_url().$this->redirectPagePath);
-            exit;
-       }
+        
+        if (!is_user_logged_in()) {
+            if ($this->redirectPagePath === '/oidc_login') {
+                // Pass return path to OIDC login
+                $this->return_to = $atts['return_to'];     
+                do_action('login_form_oidc_login');
+                exit;
+            } else {
+                wp_redirect(home_url().$this->redirectPagePath);
+                exit;
+            }
+        }
     }
 
     public function descope_onetap($atts) {
