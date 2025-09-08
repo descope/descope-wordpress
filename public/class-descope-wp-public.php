@@ -211,8 +211,16 @@ class Descope_Wp_Public
             'state' => $state,
         ]);
 
-        wp_redirect($auth_url);
-        exit;
+        if (!headers_sent()) {
+            wp_redirect($auth_url);
+            exit;
+        } else {
+            // Fallback to JavaScript if headers were sent
+            ?>
+            <script>window.location.href = <?php echo json_encode(esc_url_raw($auth_url)); ?>;</script>
+            <?php
+            exit;
+        }
     }
 
     // Callback function to handle OIDC provider response
@@ -264,8 +272,16 @@ class Descope_Wp_Public
             wp_set_auth_cookie($user->ID);
 
             // Use the stored return URL from earlier in the callback
-            wp_redirect($return_url?:home_url());
-            exit;
+            if (!headers_sent()) {
+               wp_redirect($return_url?:home_url());
+               exit;
+            } else {
+                // Fallback to JavaScript if headers were sent
+                ?>
+                <script>window.location.href = <?php echo json_encode(esc_url_raw($return_url?:home_url())); ?>;</script>
+                <?php
+                exit;
+            }
         } catch (Exception $e) {
             // Handle errors gracefully
             error_log('OIDC callback error: ' . $e->getMessage());
@@ -289,8 +305,16 @@ class Descope_Wp_Public
                 do_action('login_form_oidc_login');
                 exit;
             } else {
-                wp_redirect(home_url().$this->redirectPagePath);
-                exit;
+                if (!headers_sent()) {
+                  wp_redirect(home_url().$this->redirectPagePath);
+                   exit;
+                } else {
+                    // Fallback to JavaScript if headers were sent
+                    ?>
+                    <script>window.location.href = <?php echo json_encode(esc_url_raw(home_url().$this->redirectPagePath)); ?>;</script>
+                    <?php
+                    exit;
+                }
             }
         }
     }
@@ -503,8 +527,16 @@ class Descope_Wp_Public
             // Log in the user and redirect
             wp_set_current_user($user->ID);
             wp_set_auth_cookie($user->ID);
-            wp_redirect(home_url());
-            exit;
+            if (!headers_sent()) {
+               wp_redirect(home_url());
+               exit;
+            } else {
+                // Fallback to JavaScript if headers were sent
+                ?>
+                <script>window.location.href = <?php echo json_encode(esc_url_raw(home_url())); ?>;</script>
+                <?php
+                exit;
+            }
         }
     }
 
