@@ -348,7 +348,7 @@ class Descope_Wp_Public
         if ( !is_user_logged_in() ) {
             ?>
             <center><a href="<?php echo esc_url(site_url('/wp-login.php?action=oidc_login')); ?>">
-                <?php echo esc_html_e('Login', 'descope'); ?>
+                <?php esc_html_e('Login', 'descope'); ?>
             </a></center>
             <?php
         }
