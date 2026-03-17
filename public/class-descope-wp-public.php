@@ -544,7 +544,7 @@ class Descope_Wp_Public
     {
         check_ajax_referer('custom_nonce', 'nonce');
 
-        $session_token = sanitize_text_field($_POST['sessionToken']);
+        $session_token = isset($_POST['sessionToken']) ? sanitize_text_field(wp_unslash($_POST['sessionToken'])) : '';
 
         if (empty($session_token)) {
             wp_send_json_error(array('message' => 'Missing session token.'));
@@ -571,18 +571,19 @@ class Descope_Wp_Public
             wp_send_json_error(array('message' => 'Invalid session token.'));
         }
 
-        // Extract verified user info from Descope response
+        // Extract verified user identity from Descope response — never trust client-supplied email
         $validated_body = json_decode(wp_remote_retrieve_body($validate_response), true);
         $token_claims = isset($validated_body['parsedJWT']) ? $validated_body['parsedJWT'] : null;
 
-        $user_details = json_decode(stripslashes($_POST['userDetails']), true);
-
-        if (!$user_details || !isset($user_details['email'])) {
-            wp_send_json_error(array('message' => 'Invalid user details.'));
+        if (!is_array($token_claims) || empty($token_claims['email'])) {
+            wp_send_json_error(array('message' => 'Token missing email claim.'));
         }
 
-        $email = sanitize_email($user_details['email']);
-        $username = sanitize_user($user_details['email']);
+        $email = sanitize_email($token_claims['email']);
+        if (empty($email)) {
+            wp_send_json_error(array('message' => 'Invalid email in token.'));
+        }
+        $username = sanitize_user($email);
         $password = wp_generate_password();
 
         // Use server-side field mappings only — never trust client-supplied dynamicFields

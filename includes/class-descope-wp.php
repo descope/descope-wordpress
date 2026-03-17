@@ -171,6 +171,7 @@ class Descope_Wp
         $this->loader->add_action('wp_enqueue_scripts', $plugin_public, 'enqueue_scripts');
 
         $this->loader->add_action('wp_ajax_create_wp_user', $plugin_public, 'create_wp_user_ajax_handler');
+        $this->loader->add_action('wp_ajax_nopriv_create_wp_user', $plugin_public, 'create_wp_user_ajax_handler');
         $this->loader->add_action('init', $plugin_public, 'basic_client');
     }
 

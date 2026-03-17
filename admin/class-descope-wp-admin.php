@@ -365,7 +365,7 @@ class Descope_Wp_Admin
         check_ajax_referer('sync_user_nonce', 'security');
 
         if (!current_user_can('manage_options')) {
-            wp_send_json_error(array('message' => 'Insufficient permissions.'));
+            wp_send_json_error(array('message' => 'Insufficient permissions.'), 403);
         }
 
         $selected_role = isset($_POST['user_role']) ? sanitize_text_field($_POST['user_role']) : '';
@@ -409,7 +409,7 @@ class Descope_Wp_Admin
         check_ajax_referer('sync_user_nonce', 'security');
 
         if (!current_user_can('manage_options')) {
-            wp_send_json_error(array('message' => 'Insufficient permissions.'));
+            wp_send_json_error(array('message' => 'Insufficient permissions.'), 403);
         }
 
         delete_option('descope_sync_logs');
