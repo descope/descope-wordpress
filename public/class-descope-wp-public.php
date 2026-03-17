@@ -547,7 +547,7 @@ class Descope_Wp_Public
         $session_token = isset($_POST['sessionToken']) ? sanitize_text_field(wp_unslash($_POST['sessionToken'])) : '';
 
         if (empty($session_token)) {
-            wp_send_json_error(array('message' => 'Missing session token.'));
+            wp_send_json_error(array('message' => 'Missing session token.'), 400);
         }
 
         // Validate session token server-side via Descope API
@@ -568,7 +568,7 @@ class Descope_Wp_Public
         ));
 
         if (is_wp_error($validate_response) || wp_remote_retrieve_response_code($validate_response) !== 200) {
-            wp_send_json_error(array('message' => 'Invalid session token.'));
+            wp_send_json_error(array('message' => 'Invalid session token.'), 401);
         }
 
         // Extract verified user identity from Descope response — never trust client-supplied email
@@ -576,14 +576,13 @@ class Descope_Wp_Public
         $token_claims = isset($validated_body['parsedJWT']) ? $validated_body['parsedJWT'] : null;
 
         if (!is_array($token_claims) || empty($token_claims['email'])) {
-            wp_send_json_error(array('message' => 'Token missing email claim.'));
+            wp_send_json_error(array('message' => 'Token missing email claim.'), 401);
         }
 
         $email = sanitize_email($token_claims['email']);
         if (empty($email)) {
-            wp_send_json_error(array('message' => 'Invalid email in token.'));
+            wp_send_json_error(array('message' => 'Invalid email in token.'), 401);
         }
-        $username = sanitize_user($email);
         $password = wp_generate_password();
 
         // Use server-side field mappings only — never trust client-supplied dynamicFields
@@ -611,12 +610,20 @@ class Descope_Wp_Public
         // Use token claims from server-validated response for field mapping
         $decoded_token = is_array($token_claims) ? $token_claims : array();
 
-        // Check if user exists, if not, create a new one
-        if (!email_exists($email) && !username_exists($username)) {
+        // Look up user by email first (primary identity key)
+        $existing_user = get_user_by('email', $email);
+
+        if (!$existing_user) {
+            // Create new user — ensure unique username
+            $username = sanitize_user($email);
+            if (username_exists($username)) {
+                $username = $username . '_' . wp_rand(1000, 9999);
+            }
+
             $user_id = wp_create_user($username, $password, $email);
 
             if (is_wp_error($user_id)) {
-                wp_send_json_error(array('message' => 'User creation failed.'));
+                wp_send_json_error(array('message' => 'User creation failed.'), 500);
             }
             update_user_meta($user_id, 'session_token', $session_token);
 
@@ -633,20 +640,17 @@ class Descope_Wp_Public
             wp_set_auth_cookie($user_id, true);
             do_action('wp_login', $username, get_userdata($user_id));
         } else {
-            // If user exists, log them in
-            $user = get_user_by('email', $email);
-
-            // Iterate through server-side field mapping and update user meta
+            // User exists — log them in and update meta
             foreach ($fields as $item) {
                 $descope_field = $item['descope_field'];
                 $wp_field = $item['wp_field'];
                 $custom_attribute_value = $decoded_token[$descope_field] ?? 'Not Found';
-                update_user_meta($user->ID, $wp_field, $custom_attribute_value);
+                update_user_meta($existing_user->ID, $wp_field, $custom_attribute_value);
             }
 
-            wp_set_current_user($user->ID);
-            wp_set_auth_cookie($user->ID, true);
-            do_action('wp_login', $user->user_login, $user);
+            wp_set_current_user($existing_user->ID);
+            wp_set_auth_cookie($existing_user->ID, true);
+            do_action('wp_login', $existing_user->user_login, $existing_user);
         }
 
         // Send the redirect URL back to the JS
