@@ -544,19 +544,71 @@ class Descope_Wp_Public
     {
         check_ajax_referer('custom_nonce', 'nonce');
 
-        $user_details = json_decode(stripslashes($_POST['userDetails']), true);
-        $decoded_token = json_decode(stripslashes($_POST['decodedToken']), true);
         $session_token = sanitize_text_field($_POST['sessionToken']);
-        $fields = json_decode(stripslashes($_POST['dynamicFields']), true);
-        
-        if (!$user_details || !$session_token) {
-            wp_send_json_error(array('message' => 'Invalid user details or session token.'));
+
+        if (empty($session_token)) {
+            wp_send_json_error(array('message' => 'Missing session token.'));
         }
 
-        // Extract user information from $user_details
+        // Validate session token server-side via Descope API
+        $project_id = get_option('descope_client_id');
+        $base_api_url = 'https://api.descope.com';
+        if (strlen($project_id) >= 32) {
+            $region = substr($project_id, 1, 4);
+            $base_api_url = 'https://api.' . $region . '.descope.com';
+        }
+
+        $validate_response = wp_remote_post($base_api_url . '/v1/auth/validate', array(
+            'headers' => array(
+                'Authorization' => 'Bearer ' . $session_token,
+                'Content-Type'  => 'application/json',
+            ),
+            'body'    => '{}',
+            'timeout' => 10,
+        ));
+
+        if (is_wp_error($validate_response) || wp_remote_retrieve_response_code($validate_response) !== 200) {
+            wp_send_json_error(array('message' => 'Invalid session token.'));
+        }
+
+        // Extract verified user info from Descope response
+        $validated_body = json_decode(wp_remote_retrieve_body($validate_response), true);
+        $token_claims = isset($validated_body['parsedJWT']) ? $validated_body['parsedJWT'] : null;
+
+        $user_details = json_decode(stripslashes($_POST['userDetails']), true);
+
+        if (!$user_details || !isset($user_details['email'])) {
+            wp_send_json_error(array('message' => 'Invalid user details.'));
+        }
+
         $email = sanitize_email($user_details['email']);
         $username = sanitize_user($user_details['email']);
         $password = wp_generate_password();
+
+        // Use server-side field mappings only — never trust client-supplied dynamicFields
+        $fields = get_option('descope_dynamic_fields');
+        if (!is_array($fields)) {
+            $fields = array();
+        }
+
+        // Block sensitive meta keys that control privileges
+        $blocked_meta_keys = array(
+            'wp_capabilities', 'wp_user_level', 'capabilities', 'user_level',
+            'wp_user_roles', 'role', 'roles',
+        );
+        // Also block any prefixed variations (e.g. custom table prefix)
+        $fields = array_filter($fields, function ($item) use ($blocked_meta_keys) {
+            $wp_field = isset($item['wp_field']) ? strtolower($item['wp_field']) : '';
+            foreach ($blocked_meta_keys as $blocked) {
+                if ($wp_field === $blocked || strpos($wp_field, '_capabilities') !== false || strpos($wp_field, '_user_level') !== false) {
+                    return false;
+                }
+            }
+            return true;
+        });
+
+        // Use token claims from server-validated response for field mapping
+        $decoded_token = is_array($token_claims) ? $token_claims : array();
 
         // Check if user exists, if not, create a new one
         if (!email_exists($email) && !username_exists($username)) {
@@ -565,10 +617,9 @@ class Descope_Wp_Public
             if (is_wp_error($user_id)) {
                 wp_send_json_error(array('message' => 'User creation failed.'));
             }
-            // Optionally update user meta or roles
             update_user_meta($user_id, 'session_token', $session_token);
 
-            // iterate through custom field mapping and update user meta
+            // Iterate through server-side field mapping and update user meta
             foreach ($fields as $item) {
                 $descope_field = $item['descope_field'];
                 $wp_field = $item['wp_field'];
@@ -584,7 +635,7 @@ class Descope_Wp_Public
             // If user exists, log them in
             $user = get_user_by('email', $email);
 
-            // iterate through custom field mapping and update user meta
+            // Iterate through server-side field mapping and update user meta
             foreach ($fields as $item) {
                 $descope_field = $item['descope_field'];
                 $wp_field = $item['wp_field'];

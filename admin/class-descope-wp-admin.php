@@ -364,6 +364,10 @@ class Descope_Wp_Admin
     {
         check_ajax_referer('sync_user_nonce', 'security');
 
+        if (!current_user_can('manage_options')) {
+            wp_send_json_error(array('message' => 'Insufficient permissions.'));
+        }
+
         $selected_role = isset($_POST['user_role']) ? sanitize_text_field($_POST['user_role']) : '';
 
         // Get all users with the selected role
@@ -403,6 +407,10 @@ class Descope_Wp_Admin
     public function clear_log_file_callback()
     {
         check_ajax_referer('sync_user_nonce', 'security');
+
+        if (!current_user_can('manage_options')) {
+            wp_send_json_error(array('message' => 'Insufficient permissions.'));
+        }
 
         delete_option('descope_sync_logs');
         update_option('descope_sync_logs', array());
