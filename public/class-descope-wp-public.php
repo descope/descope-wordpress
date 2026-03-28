@@ -544,31 +544,90 @@ class Descope_Wp_Public
     {
         check_ajax_referer('custom_nonce', 'nonce');
 
-        $user_details = json_decode(stripslashes($_POST['userDetails']), true);
-        $decoded_token = json_decode(stripslashes($_POST['decodedToken']), true);
-        $session_token = sanitize_text_field($_POST['sessionToken']);
-        $fields = json_decode(stripslashes($_POST['dynamicFields']), true);
-        
-        if (!$user_details || !$session_token) {
-            wp_send_json_error(array('message' => 'Invalid user details or session token.'));
+        $session_token = isset($_POST['sessionToken']) ? sanitize_text_field(wp_unslash($_POST['sessionToken'])) : '';
+
+        if (empty($session_token)) {
+            wp_send_json_error(array('message' => 'Missing session token.'), 400);
         }
 
-        // Extract user information from $user_details
-        $email = sanitize_email($user_details['email']);
-        $username = sanitize_user($user_details['email']);
+        // Validate session token server-side via Descope API
+        $project_id = get_option('descope_client_id');
+        $base_api_url = 'https://api.descope.com';
+        if (strlen($project_id) >= 32) {
+            $region = substr($project_id, 1, 4);
+            $base_api_url = 'https://api.' . $region . '.descope.com';
+        }
+
+        $validate_response = wp_remote_post($base_api_url . '/v1/auth/validate', array(
+            'headers' => array(
+                'Authorization' => 'Bearer ' . $session_token,
+                'Content-Type'  => 'application/json',
+            ),
+            'body'    => '{}',
+            'timeout' => 10,
+        ));
+
+        if (is_wp_error($validate_response) || wp_remote_retrieve_response_code($validate_response) !== 200) {
+            wp_send_json_error(array('message' => 'Invalid session token.'), 401);
+        }
+
+        // Extract verified user identity from Descope response — never trust client-supplied email
+        $validated_body = json_decode(wp_remote_retrieve_body($validate_response), true);
+        $token_claims = isset($validated_body['parsedJWT']) ? $validated_body['parsedJWT'] : null;
+
+        if (!is_array($token_claims) || empty($token_claims['email'])) {
+            wp_send_json_error(array('message' => 'Token missing email claim.'), 401);
+        }
+
+        $email = sanitize_email($token_claims['email']);
+        if (empty($email)) {
+            wp_send_json_error(array('message' => 'Invalid email in token.'), 401);
+        }
         $password = wp_generate_password();
 
-        // Check if user exists, if not, create a new one
-        if (!email_exists($email) && !username_exists($username)) {
+        // Use server-side field mappings only — never trust client-supplied dynamicFields
+        $fields = get_option('descope_dynamic_fields');
+        if (!is_array($fields)) {
+            $fields = array();
+        }
+
+        // Block sensitive meta keys that control privileges
+        $blocked_meta_keys = array(
+            'wp_capabilities', 'wp_user_level', 'capabilities', 'user_level',
+            'wp_user_roles', 'role', 'roles',
+        );
+        // Also block any prefixed variations (e.g. custom table prefix)
+        $fields = array_filter($fields, function ($item) use ($blocked_meta_keys) {
+            $wp_field = isset($item['wp_field']) ? strtolower($item['wp_field']) : '';
+            foreach ($blocked_meta_keys as $blocked) {
+                if ($wp_field === $blocked || strpos($wp_field, '_capabilities') !== false || strpos($wp_field, '_user_level') !== false) {
+                    return false;
+                }
+            }
+            return true;
+        });
+
+        // Use token claims from server-validated response for field mapping
+        $decoded_token = is_array($token_claims) ? $token_claims : array();
+
+        // Look up user by email first (primary identity key)
+        $existing_user = get_user_by('email', $email);
+
+        if (!$existing_user) {
+            // Create new user — ensure unique username
+            $username = sanitize_user($email);
+            if (username_exists($username)) {
+                $username = $username . '_' . wp_rand(1000, 9999);
+            }
+
             $user_id = wp_create_user($username, $password, $email);
 
             if (is_wp_error($user_id)) {
-                wp_send_json_error(array('message' => 'User creation failed.'));
+                wp_send_json_error(array('message' => 'User creation failed.'), 500);
             }
-            // Optionally update user meta or roles
             update_user_meta($user_id, 'session_token', $session_token);
 
-            // iterate through custom field mapping and update user meta
+            // Iterate through server-side field mapping and update user meta
             foreach ($fields as $item) {
                 $descope_field = $item['descope_field'];
                 $wp_field = $item['wp_field'];
@@ -581,20 +640,17 @@ class Descope_Wp_Public
             wp_set_auth_cookie($user_id, true);
             do_action('wp_login', $username, get_userdata($user_id));
         } else {
-            // If user exists, log them in
-            $user = get_user_by('email', $email);
-
-            // iterate through custom field mapping and update user meta
+            // User exists — log them in and update meta
             foreach ($fields as $item) {
                 $descope_field = $item['descope_field'];
                 $wp_field = $item['wp_field'];
                 $custom_attribute_value = $decoded_token[$descope_field] ?? 'Not Found';
-                update_user_meta($user->ID, $wp_field, $custom_attribute_value);
+                update_user_meta($existing_user->ID, $wp_field, $custom_attribute_value);
             }
 
-            wp_set_current_user($user->ID);
-            wp_set_auth_cookie($user->ID, true);
-            do_action('wp_login', $user->user_login, $user);
+            wp_set_current_user($existing_user->ID);
+            wp_set_auth_cookie($existing_user->ID, true);
+            do_action('wp_login', $existing_user->user_login, $existing_user);
         }
 
         // Send the redirect URL back to the JS
