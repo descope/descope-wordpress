@@ -75,7 +75,15 @@ register_deactivation_hook(__FILE__, 'descope_deactivate_wp');
  * admin-specific hooks, and public-facing site hooks.
  */
 
-require plugin_dir_path(__FILE__) . '/vendor/autoload.php';
+if (!file_exists(plugin_dir_path(__FILE__) . 'vendor/autoload.php')) {
+    add_action('admin_notices', function () {
+        echo '<div class="notice notice-error"><p>';
+        esc_html_e('Descope: Composer dependencies are missing. Run "composer install" in the plugin directory, or install an official release build.', 'descope-wp');
+        echo '</p></div>';
+    });
+    return;
+}
+require plugin_dir_path(__FILE__) . 'vendor/autoload.php';
 
 require plugin_dir_path(__FILE__) . 'includes/class-descope-wp.php';
 

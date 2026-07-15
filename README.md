@@ -82,6 +82,16 @@ The plugin loads these components from Descope's CDN as they are essential parts
 #### Account Requirement
 A Descope account is required to use this plugin. You can create one at [https://app.descope.com](https://app.descope.com)
 
+### Development
+
+This repository does not commit the `vendor/` directory. After cloning, install the PHP dependencies with:
+
+```bash
+composer install
+```
+
+Installable plugin zips (with dependencies bundled) are built by the [Build plugin](.github/workflows/build.yml) GitHub Actions workflow — download the `descope-wp` artifact from any run, or the zip attached to a tagged release.
+
 ### License
 
 This plugin is licensed under the [MIT License](LICENSE).
