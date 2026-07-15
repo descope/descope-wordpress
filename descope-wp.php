@@ -18,7 +18,9 @@
  * Version:           1.0.0
  * Author:            Descope
  * Author URI:        https://www.descope.com/
- * License:           GPL2
+ * License:           MIT
+ * License URI:       https://opensource.org/licenses/MIT
+ * Requires PHP:      7.3
  */
 
 // If this file is called directly, abort.
@@ -74,8 +76,6 @@ register_deactivation_hook(__FILE__, 'descope_deactivate_wp');
  */
 
 require plugin_dir_path(__FILE__) . '/vendor/autoload.php';
-
-require plugin_dir_path(__FILE__) . '/_toolkit_loader.php';
 
 require plugin_dir_path(__FILE__) . 'includes/class-descope-wp.php';
 

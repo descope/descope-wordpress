@@ -2,7 +2,7 @@
 
 ## [Descope](https://www.descope.com/) for WordPress
 
-[![License: GPL v2](https://img.shields.io/badge/License-GPL_v2-blue.svg)](https://www.gnu.org/licenses/old-licenses/gpl-2.0.en.html)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)
 
 ## Getting Started
 
@@ -81,6 +81,12 @@ The plugin loads these components from Descope's CDN as they are essential parts
 
 #### Account Requirement
 A Descope account is required to use this plugin. You can create one at [https://app.descope.com](https://app.descope.com)
+
+### License
+
+This plugin is licensed under the [MIT License](LICENSE).
+
+The bundled third-party dependencies (under `vendor/`) are distributed under their own permissive licenses: [onelogin/php-saml](https://github.com/SAML-Toolkits/php-saml) (MIT), [jumbojett/openid-connect-php](https://github.com/jumbojett/OpenID-Connect-PHP) (Apache-2.0), [phpseclib](https://github.com/phpseclib/phpseclib) (MIT), [robrichards/xmlseclibs](https://github.com/robrichards/xmlseclibs) (BSD-3-Clause), and [paragonie](https://github.com/paragonie) polyfills (MIT). Each package's license text is included in its directory.
 
 ---
 

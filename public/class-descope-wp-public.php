@@ -1,6 +1,7 @@
 <?php
 
 use Jumbojett\OpenIDConnectClient;
+use OneLogin\Saml2\Auth as Saml2Auth;
 
 class Descope_Wp_Public
 {
@@ -69,7 +70,7 @@ class Descope_Wp_Public
             );
 
             try {
-                $this->auth = new OneLogin_Saml2_Auth($this->settingsInfo);
+                $this->auth = new Saml2Auth($this->settingsInfo);
             } catch (Exception $e) {
                 error_log('SAML initialization error: ' . $e->getMessage());
                 error_log('SAML settings: ' . print_r($this->settingsInfo, true));
