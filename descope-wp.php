@@ -20,7 +20,7 @@
  * Author URI:        https://www.descope.com/
  * License:           MIT
  * License URI:       https://opensource.org/licenses/MIT
- * Requires PHP:      7.3
+ * Requires PHP:      8.0
  */
 
 // If this file is called directly, abort.
