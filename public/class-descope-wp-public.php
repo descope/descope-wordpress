@@ -589,20 +589,27 @@ class Descope_Wp_Public
         // otherwise load the user by the validated subject with the management key.
         $email = isset($token_claims['email']) ? $token_claims['email'] : '';
         $mgmt_key = get_option('descope_management_key');
+        $lookup_attempted = false;
         if (empty($email) && !empty($token_claims['sub']) && is_string($token_claims['sub']) && !empty($mgmt_key)) {
+            $lookup_attempted = true;
             $user_response = wp_remote_get($base_api_url . '/v1/mgmt/user?' . http_build_query(array('userid' => $token_claims['sub'])), array(
                 'headers' => array('Authorization' => 'Bearer ' . $project_id . ':' . $mgmt_key),
                 'timeout' => 10,
             ));
-            if (!is_wp_error($user_response) && wp_remote_retrieve_response_code($user_response) === 200) {
+            $lookup_code = is_wp_error($user_response) ? 0 : wp_remote_retrieve_response_code($user_response);
+            if ($lookup_code === 200) {
                 $user_body = json_decode(wp_remote_retrieve_body($user_response), true);
                 $email = isset($user_body['user']['email']) ? $user_body['user']['email'] : '';
+            } else {
+                error_log('Descope management user lookup failed: ' . (is_wp_error($user_response) ? $user_response->get_error_message() : 'HTTP ' . $lookup_code));
             }
         }
 
         $email = (is_string($email) && is_email($email)) ? strtolower($email) : '';
         if (empty($email)) {
-            error_log('Descope login rejected: no email in session claims. Add an email claim to the User JWT template or set the management key.');
+            error_log($lookup_attempted
+                ? 'Descope login rejected: no usable email after the management user lookup.'
+                : 'Descope login rejected: no email in session claims. Add an email claim to the User JWT template or set the management key.');
             wp_send_json_error(array('message' => 'Unable to determine user email.'), 401);
         }
         $password = wp_generate_password();
