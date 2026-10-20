@@ -198,11 +198,12 @@ class Descope_Wp_Public
     // Redirect user to OIDC provider for authentication
     public function descope_oidc_login()
     {
-        // Generate state with return path
-        $state = base64_encode(json_encode([
-            'nonce' => wp_create_nonce('oidc_state'),
-            'return_to' => $this->return_to
-        ]));
+        if (!session_id()) {
+            session_start();
+        }
+        $state = bin2hex(random_bytes(16));
+        $_SESSION['descope_oidc_state'] = $state;
+        $_SESSION['descope_oidc_return_to'] = (string) $this->return_to;
         
         $auth_url = get_option('descope_authorization_endpoint') . '?' . http_build_query([
             'client_id' => $this->client_id,
@@ -231,25 +232,19 @@ class Descope_Wp_Public
             session_start();
         }
         try {
-                            // Verify state parameter to prevent CSRF
-                if (!isset($_GET['state']) || empty($_GET['state'])) {
-                    throw new Exception('State parameter missing from callback');
-                }
+            // Verify state parameter against the browser session to prevent login CSRF
+            $expected = isset($_SESSION['descope_oidc_state']) ? $_SESSION['descope_oidc_state'] : '';
+            $return_path = isset($_SESSION['descope_oidc_return_to']) ? $_SESSION['descope_oidc_return_to'] : '';
+            unset($_SESSION['descope_oidc_state'], $_SESSION['descope_oidc_return_to']);
 
-                // Decode the state parameter
-                $state_data = json_decode(base64_decode($_GET['state']), true);
-                if (!$state_data) {
-                    throw new Exception('Invalid state format');
-                }
+            if (!isset($_GET['state']) || !is_string($_GET['state']) || $_GET['state'] === '') {
+                throw new Exception('State parameter missing from callback');
+            }
+            if (!is_string($expected) || $expected === '' || !hash_equals($expected, $_GET['state'])) {
+                throw new Exception('Invalid state');
+            }
 
-                // Verify the nonce
-                if (!wp_verify_nonce($state_data['nonce'], 'oidc_state')) {
-                    throw new Exception('Invalid state nonce');
-                }
-
-                // Get the return URL from state
-                $return_path = isset($state_data['return_to']) ? $state_data['return_to'] : '';
-                $return_url = home_url($return_path);
+            $return_url = home_url($return_path);
 
             // Exchange authorization code for tokens
             $tokens = $this->exchangeAuthorizationCodeForTokens($_GET['code']);
