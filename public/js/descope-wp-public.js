@@ -1,6 +1,5 @@
 jQuery(document).ready(function () {
     const projectId = descope_ajax_object.clientId;
-    const dynamicFields = descope_ajax_object.dynamicFields;
     const baseUrl = descope_ajax_object.baseUrl;
     // get flow Id from shortcode & default to sign up or in if not present
     const flowId = descope_ajax_object.flowId ? descope_ajax_object.flowId : 'sign-up-or-in';
@@ -20,7 +19,7 @@ jQuery(document).ready(function () {
 
     let hasReloaded = false;  // To prevent multiple reloads
 
-    async function sendFormData(sessionToken, userDetails, decodedToken) {
+    async function sendFormData(sessionToken) {
         if (!sessionToken || sdk.isJwtExpired(sessionToken)) {
             console.log("Session token is invalid or expired.");
             return;
@@ -32,9 +31,6 @@ jQuery(document).ready(function () {
             data: {
                 action: 'create_wp_user',
                 sessionToken: sessionToken,
-                userDetails: JSON.stringify(userDetails),
-                decodedToken: JSON.stringify(decodedToken),
-                dynamicFields: JSON.stringify(dynamicFields),
                 nonce: descope_ajax_object.nonce
             },
             success: function (response) {            
@@ -51,10 +47,8 @@ jQuery(document).ready(function () {
     }
 
     async function handleUserDetails() {
-        const user = await sdk.me();
         const sessionToken = sdk.getSessionToken();
-        const decodedToken = jwt_decode(sessionToken);
-        sendFormData(sessionToken, user.data, decodedToken);
+        sendFormData(sessionToken);
     }
 
     async function handleOneTap(providerId) {

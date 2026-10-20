@@ -124,7 +124,6 @@ class Descope_Wp_Public
             'clientId' => get_option('descope_client_id'),
             'baseUrl' => get_option('descope_base_url'),
             'flowId' => $this->flowId,
-            'dynamicFields' => get_option('descope_dynamic_fields'),
             'logoutUrl' => wp_logout_url(home_url()),
             'providerId' => $this->providerId,
             'redirectPagePath' => $this->redirectPagePath
@@ -553,15 +552,21 @@ class Descope_Wp_Public
 
         // Validate session token server-side via Descope API
         $project_id = get_option('descope_client_id');
-        $base_api_url = 'https://api.descope.com';
-        if (strlen($project_id) >= 32) {
-            $region = substr($project_id, 1, 4);
-            $base_api_url = 'https://api.' . $region . '.descope.com';
+        if (empty($project_id)) {
+            wp_send_json_error(array('message' => 'Descope is not configured.'), 500);
+        }
+        // Custom domain / private cloud projects must use the configured base URL
+        $base_api_url = untrailingslashit((string) get_option('descope_base_url'));
+        if ($base_api_url === '') {
+            $base_api_url = 'https://api.descope.com';
+            if (strlen($project_id) >= 32) {
+                $base_api_url = 'https://api.' . substr($project_id, 1, 4) . '.descope.com';
+            }
         }
 
         $validate_response = wp_remote_post($base_api_url . '/v1/auth/validate', array(
             'headers' => array(
-                'Authorization' => 'Bearer ' . $session_token,
+                'Authorization' => 'Bearer ' . $project_id . ':' . $session_token,
                 'Content-Type'  => 'application/json',
             ),
             'body'    => '{}',
@@ -576,13 +581,29 @@ class Descope_Wp_Public
         $validated_body = json_decode(wp_remote_retrieve_body($validate_response), true);
         $token_claims = isset($validated_body['parsedJWT']) ? $validated_body['parsedJWT'] : null;
 
-        if (!is_array($token_claims) || empty($token_claims['email'])) {
-            wp_send_json_error(array('message' => 'Token missing email claim.'), 401);
+        if (!is_array($token_claims)) {
+            wp_send_json_error(array('message' => 'Invalid session token.'), 401);
         }
 
-        $email = sanitize_email($token_claims['email']);
+        // The default session JWT has no email claim. Use it if the project adds one,
+        // otherwise load the user by the validated subject with the management key.
+        $email = isset($token_claims['email']) ? $token_claims['email'] : '';
+        $mgmt_key = get_option('descope_management_key');
+        if (empty($email) && !empty($token_claims['sub']) && is_string($token_claims['sub']) && !empty($mgmt_key)) {
+            $user_response = wp_remote_get($base_api_url . '/v1/mgmt/user?' . http_build_query(array('userid' => $token_claims['sub'])), array(
+                'headers' => array('Authorization' => 'Bearer ' . $project_id . ':' . $mgmt_key),
+                'timeout' => 10,
+            ));
+            if (!is_wp_error($user_response) && wp_remote_retrieve_response_code($user_response) === 200) {
+                $user_body = json_decode(wp_remote_retrieve_body($user_response), true);
+                $email = isset($user_body['user']['email']) ? $user_body['user']['email'] : '';
+            }
+        }
+
+        $email = (is_string($email) && is_email($email)) ? strtolower($email) : '';
         if (empty($email)) {
-            wp_send_json_error(array('message' => 'Invalid email in token.'), 401);
+            error_log('Descope login rejected: no email in session claims. Add an email claim to the User JWT template or set the management key.');
+            wp_send_json_error(array('message' => 'Unable to determine user email.'), 401);
         }
         $password = wp_generate_password();
 
@@ -592,16 +613,14 @@ class Descope_Wp_Public
             $fields = array();
         }
 
-        // Block sensitive meta keys that control privileges
-        $blocked_meta_keys = array(
-            'wp_capabilities', 'wp_user_level', 'capabilities', 'user_level',
-            'wp_user_roles', 'role', 'roles',
-        );
-        // Also block any prefixed variations (e.g. custom table prefix)
-        $fields = array_filter($fields, function ($item) use ($blocked_meta_keys) {
-            $wp_field = isset($item['wp_field']) ? strtolower($item['wp_field']) : '';
-            foreach ($blocked_meta_keys as $blocked) {
-                if ($wp_field === $blocked || strpos($wp_field, '_capabilities') !== false || strpos($wp_field, '_user_level') !== false) {
+        // Block meta keys that control privileges or sessions, regardless of table prefix
+        $fields = array_filter($fields, function ($item) {
+            $wp_field = (isset($item['wp_field']) && is_string($item['wp_field'])) ? strtolower($item['wp_field']) : '';
+            if ($wp_field === '' || in_array($wp_field, array('role', 'roles'), true)) {
+                return false;
+            }
+            foreach (array('capabilities', 'user_level', 'user_roles', 'session_tokens', 'application_passwords') as $blocked) {
+                if (strpos($wp_field, $blocked) !== false) {
                     return false;
                 }
             }
@@ -626,7 +645,6 @@ class Descope_Wp_Public
             if (is_wp_error($user_id)) {
                 wp_send_json_error(array('message' => 'User creation failed.'), 500);
             }
-            update_user_meta($user_id, 'session_token', $session_token);
 
             // Iterate through server-side field mapping and update user meta
             foreach ($fields as $item) {
