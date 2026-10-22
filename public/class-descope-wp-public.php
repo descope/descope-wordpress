@@ -67,6 +67,9 @@ class Descope_Wp_Public
                     ),
                     'x509cert' => str_replace(' ', '', get_option('descope_x_certificate')),
                 ),
+                'security' => array (
+                    'wantAssertionsSigned' => true,
+                ),
             );
 
             try {
@@ -496,6 +499,10 @@ class Descope_Wp_Public
             } else {
                 $requestID = null;
             }
+            if (!$this->auth) {
+                error_log('SAML ACS hit but SAML is not configured.');
+                return;
+            }
 
             $this->auth->processResponse($requestID);
                  $errors = $this->auth->getErrors();
@@ -513,6 +520,17 @@ class Descope_Wp_Public
             }
             
             
+            $assertionId = $this->auth->getLastAssertionId();
+            $replayKey = 'descope_saml_' . md5((string) $assertionId);
+            if (empty($assertionId) || get_transient($replayKey)) {
+                error_log('SAML assertion missing ID or replayed.');
+                echo "<p>Not authenticated</p>";
+                exit();
+            }
+            $notOnOrAfter = (int) $this->auth->getLastAssertionNotOnOrAfter();
+            $ttl = $notOnOrAfter > time() ? $notOnOrAfter - time() + 60 : HOUR_IN_SECONDS;
+            set_transient($replayKey, 1, $ttl);
+
             $_SESSION['samlUserdata'] = $this->auth->getAttributes();
 
             $user_email = $_SESSION['samlUserdata']['email'][0];
