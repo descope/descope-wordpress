@@ -15,7 +15,7 @@
  * @wordpress-plugin
  * Plugin Name:       Descope
  * Description:       Add drag and drop authentication to your site with Descope.
- * Version:           1.0.0
+ * Version:           1.2.0
  * Author:            Descope
  * Author URI:        https://www.descope.com/
  * License:           MIT
@@ -31,7 +31,7 @@ if (!defined('WPINC')) {
 /**
  * Current plugin version.
  */
-define('DESCOPE_WP_VERSION', '1.0.0');
+define('DESCOPE_WP_VERSION', '1.2.0');
 
 // Use uploads directory for metadata.xml
 function descope_get_metadata_file_path() {
