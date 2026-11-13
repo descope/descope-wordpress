@@ -158,10 +158,10 @@ class Descope_Wp_Admin
      */
     public function make_curl_post_request($url, $authorization_token, $data = null)
     {
-        $headers = [
+        $headers = array_merge(descope_wp_sdk_headers(), [
             'Authorization' => 'Bearer ' . trim($authorization_token),
             'Content-Type' => 'application/json'
-        ];
+        ]);
 
         $body = $data ? json_encode($data) : '';
 

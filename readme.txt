@@ -4,7 +4,7 @@ Tags: authentication, login, sso, passwordless, passkeys
 Requires at least: 6.0
 Tested up to: 7.1
 Requires PHP: 8.0
-Stable tag: 1.2.0
+Stable tag: 1.3.0
 License: MIT
 License URI: https://opensource.org/licenses/MIT
 
@@ -34,6 +34,9 @@ This plugin connects to the Descope service (https://www.descope.com/) to authen
 4. Optionally configure SAML/OIDC SSO under the SSO Configuration tab.
 
 == Changelog ==
+
+= 1.3.0 =
+* Send standard Descope SDK identification headers (x-descope-sdk-name: wordpress, plugin/PHP/WordPress versions) on every Descope API call so installs can be attributed by version.
 
 = 1.2.0 =
 * Security: derive the WordPress login identity from the validated Descope session.

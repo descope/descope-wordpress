@@ -363,6 +363,7 @@ class Descope_Wp_Public
     private function exchangeAuthorizationCodeForTokens($authorization_code)
     {
         $response = wp_remote_post($this->token_endpoint, [
+            'headers' => descope_wp_sdk_headers(),
             'body' => [
                 'grant_type' => 'authorization_code',
                 'code' => $authorization_code,
@@ -394,9 +395,9 @@ class Descope_Wp_Public
     private function requestUserInfoWithCurl($access_token)
     {
         $response = wp_remote_get($this->userinfo_endpoint, [
-            'headers' => [
+            'headers' => array_merge(descope_wp_sdk_headers(), [
                 'Authorization' => 'Bearer ' . $access_token,
-            ],
+            ]),
         ]);
 
         if (is_wp_error($response)) {
@@ -578,10 +579,10 @@ class Descope_Wp_Public
         }
 
         $validate_response = wp_remote_post($base_api_url . '/v1/auth/validate', array(
-            'headers' => array(
+            'headers' => array_merge(descope_wp_sdk_headers(), array(
                 'Authorization' => 'Bearer ' . $project_id . ':' . $session_token,
                 'Content-Type'  => 'application/json',
-            ),
+            )),
             'body'    => '{}',
             'timeout' => 10,
         ));
@@ -606,7 +607,7 @@ class Descope_Wp_Public
         if (empty($email) && !empty($token_claims['sub']) && is_string($token_claims['sub']) && !empty($mgmt_key)) {
             $lookup_attempted = true;
             $user_response = wp_remote_get($base_api_url . '/v1/mgmt/user?' . http_build_query(array('userid' => $token_claims['sub'])), array(
-                'headers' => array('Authorization' => 'Bearer ' . $project_id . ':' . $mgmt_key),
+                'headers' => array_merge(descope_wp_sdk_headers(), array('Authorization' => 'Bearer ' . $project_id . ':' . $mgmt_key)),
                 'timeout' => 10,
             ));
             $lookup_code = is_wp_error($user_response) ? 0 : wp_remote_retrieve_response_code($user_response);
@@ -701,10 +702,10 @@ class Descope_Wp_Public
     {
         $client_credentials = base64_encode($this->client_id . ':' . $this->client_secret);
 
-        $headers = array(
+        $headers = array_merge(descope_wp_sdk_headers(), array(
             'Authorization' => 'Basic ' . $client_credentials,
             'Content-Type' => 'application/x-www-form-urlencoded'
-        );
+        ));
 
         $body = array(
             'grant_type' => 'client_credentials',
