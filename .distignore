@@ -1,0 +1,9 @@
+/.git
+/.github
+/.gitignore
+/.distignore
+/build
+/renovate.json
+/composer.lock
+.DS_Store
+._.DS_Store
