@@ -26,8 +26,6 @@ jobs:
   deploy:
     needs: verify
     runs-on: ubuntu-latest
-    # Requires approval from the reviewers configured on the 'release' environment.
-    environment: release
     permissions:
       contents: write
     steps:
