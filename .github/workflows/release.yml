@@ -1,0 +1,57 @@
+name: Release to WordPress.org
+
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Tag must match plugin version
+        run: |
+          tag="${GITHUB_REF_NAME#v}"
+          header=$(grep -m1 -E '^\s*\*\s*Version:' descope-wp.php | sed -E 's/.*Version:\s*//; s/\s+$//')
+          const=$(grep -m1 "define('DESCOPE_WP_VERSION'" descope-wp.php | sed -E "s/.*'([0-9][^']*)'\).*/\1/")
+          stable=$(grep -m1 -E '^Stable tag:' readme.txt | sed -E 's/Stable tag:\s*//; s/\s+$//')
+          echo "tag=$tag header=$header const=$const stable=$stable"
+          for v in "$header" "$const" "$stable"; do
+            [ "$v" = "$tag" ] || { echo "::error::Version mismatch: tag $tag vs $v"; exit 1; }
+          done
+
+  deploy:
+    needs: verify
+    runs-on: ubuntu-latest
+    # Requires approval from the reviewers configured on the 'release' environment.
+    environment: release
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - uses: shivammathur/setup-php@eb7c497e18156a6bbabfef1d3a82760b9eda3962 # 2.40.0
+        with:
+          php-version: '8.1'
+          tools: composer
+
+      - name: Install dependencies
+        run: composer install --no-dev --prefer-dist --optimize-autoloader --no-interaction
+
+      - name: Deploy to WordPress.org
+        id: deploy
+        uses: 10up/action-wordpress-plugin-deploy@54bd289b8525fd23a5c365ec369185f2966529c2 # 2.3.0
+        env:
+          SVN_USERNAME: ${{ secrets.SVN_USERNAME }}
+          SVN_PASSWORD: ${{ secrets.SVN_PASSWORD }}
+          SLUG: descope
+        with:
+          generate-zip: true
+
+      - name: Attach to GitHub release
+        uses: softprops/action-gh-release@efb35369e0ad2afab669f228072c1b0d510eae64 # v3.0.3
+        with:
+          files: ${{ steps.deploy.outputs.zip-path }}
