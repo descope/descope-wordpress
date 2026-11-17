@@ -1,0 +1,77 @@
+name: Release
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  release-please:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+    outputs:
+      release_created: ${{ steps.rp.outputs.release_created }}
+      tag_name: ${{ steps.rp.outputs.tag_name }}
+      version: ${{ steps.rp.outputs.version }}
+    steps:
+      - id: rp
+        uses: googleapis/release-please-action@45996ed1f6d02564a971a2fa1b5860e934307cf7 # v5.0.0
+        with:
+          config-file: release-please-config.json
+          manifest-file: .release-please-manifest.json
+
+  # Release Please tags with GITHUB_TOKEN, which does not trigger other workflows,
+  # so the WordPress.org deploy runs here, gated on a release being created.
+  deploy:
+    needs: release-please
+    if: ${{ needs.release-please.outputs.release_created == 'true' }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ needs.release-please.outputs.tag_name }}
+          persist-credentials: false
+
+      - name: Tag must match plugin version
+        env:
+          TAG: ${{ needs.release-please.outputs.tag_name }}
+        run: |
+          tag="${TAG#v}"
+          header=$(grep -m1 -E '^\s*\*\s*Version:' descope-wp.php | sed -E 's/.*Version:\s*//; s/\s+$//')
+          const=$(grep -m1 "define('DESCOPE_WP_VERSION'" descope-wp.php | sed -E "s/.*'([0-9][^']*)'\).*/\1/")
+          stable=$(grep -m1 -E '^Stable tag:' readme.txt | sed -E 's/Stable tag:\s*//; s/\s+$//')
+          echo "tag=$tag header=$header const=$const stable=$stable"
+          for v in "$header" "$const" "$stable"; do
+            [ "$v" = "$tag" ] || { echo "::error::Version mismatch: tag $tag vs $v"; exit 1; }
+          done
+
+      - uses: shivammathur/setup-php@eb7c497e18156a6bbabfef1d3a82760b9eda3962 # 2.40.0
+        with:
+          php-version: '8.1'
+          tools: composer
+
+      - name: Install dependencies
+        run: composer install --no-dev --prefer-dist --optimize-autoloader --no-interaction
+
+      - name: Deploy to WordPress.org
+        id: deploy
+        uses: 10up/action-wordpress-plugin-deploy@54bd289b8525fd23a5c365ec369185f2966529c2 # 2.3.0
+        env:
+          SVN_USERNAME: ${{ secrets.SVN_USERNAME }}
+          SVN_PASSWORD: ${{ secrets.SVN_PASSWORD }}
+          SLUG: descope
+          VERSION: ${{ needs.release-please.outputs.version }}
+        with:
+          generate-zip: true
+
+      - name: Attach zip to GitHub release
+        uses: softprops/action-gh-release@efb35369e0ad2afab669f228072c1b0d510eae64 # v3.0.3
+        with:
+          tag_name: ${{ needs.release-please.outputs.tag_name }}
+          files: ${{ steps.deploy.outputs.zip-path }}

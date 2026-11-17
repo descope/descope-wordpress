@@ -4,7 +4,9 @@ Tags: authentication, login, sso, passwordless, passkeys
 Requires at least: 6.0
 Tested up to: 7.1
 Requires PHP: 8.0
+<!-- x-release-please-start-version -->
 Stable tag: 1.3.0
+<!-- x-release-please-end -->
 License: MIT
 License URI: https://opensource.org/licenses/MIT
 
