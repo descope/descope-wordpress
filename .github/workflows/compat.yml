@@ -1,0 +1,83 @@
+name: Compatibility
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  schedule:
+    - cron: '0 6 * * 1'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  smoke:
+    name: WP ${{ matrix.wp }} / PHP ${{ matrix.php }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { wp: '6.0', php: '8.0' }
+          - { wp: latest, php: '8.1' }
+          - { wp: latest, php: '8.4' }
+          - { wp: rc, php: '8.4' }
+          - { wp: nightly, php: '8.6' }
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - uses: shivammathur/setup-php@eb7c497e18156a6bbabfef1d3a82760b9eda3962 # 2.40.0
+        with:
+          php-version: ${{ matrix.php }}
+          extensions: mysqli, curl, openssl, xml, zip
+          tools: composer, wp-cli
+
+      - name: Install plugin dependencies
+        run: composer install --no-dev --prefer-dist --no-interaction
+
+      - name: Install WordPress
+        env:
+          WP: ${{ matrix.wp }}
+        run: |
+          sudo systemctl start mysql.service
+          mkdir "$RUNNER_TEMP/site" && cd "$RUNNER_TEMP/site"
+          # rc: newest beta/RC, or latest stable when none is in progress.
+          if [ "$WP" = rc ]; then
+            WP=$(curl -fsS 'https://api.wordpress.org/core/version-check/1.7/?channel=beta' | jq -er '.offers[0].version')
+          fi
+          wp core download --version="$WP"
+          wp config create --dbname=wp --dbuser=root --dbpass=root --dbhost=127.0.0.1 --extra-php <<'PHP'
+          define('WP_DEBUG', true);
+          define('WP_DEBUG_LOG', true);
+          define('WP_DEBUG_DISPLAY', false);
+          PHP
+          wp db create
+          wp core install --url=http://127.0.0.1:8080 --title=ci --admin_user=admin --admin_password=admin --admin_email=ci@example.com --skip-email
+          rsync -a --exclude=.git --exclude=.github "$GITHUB_WORKSPACE/" wp-content/plugins/descope/
+          wp plugin activate descope
+          wp core version
+
+      - name: Smoke test pages
+        working-directory: ${{ runner.temp }}/site
+        run: |
+          php -S 127.0.0.1:8080 >/dev/null 2>&1 &
+          sleep 2
+          base=http://127.0.0.1:8080
+          curl -fsS -o /dev/null "$base/"
+          curl -fsS -o /dev/null "$base/wp-login.php"
+          curl -fsS -c jar -b 'wordpress_test_cookie=WP+Cookie+check' -o /dev/null \
+            -d 'log=admin&pwd=admin&testcookie=1' "$base/wp-login.php"
+          for page in 'admin.php?page=descope-settings' plugins.php users.php; do
+            curl -fsS -b jar "$base/wp-admin/$page" | grep -q 'wp-admin-bar' || { echo "admin page failed: $page"; exit 1; }
+          done
+          wp plugin deactivate descope && wp plugin activate descope
+
+      - name: Check debug log
+        if: always()
+        working-directory: ${{ runner.temp }}/site
+        run: |
+          log=wp-content/debug.log
+          [ -f "$log" ] || { echo 'no debug output'; exit 0; }
+          cat "$log"
+          ! grep -E 'Fatal error|plugins/descope/' "$log"

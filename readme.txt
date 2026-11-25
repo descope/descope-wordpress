@@ -2,7 +2,7 @@
 Contributors: gaokevin
 Tags: authentication, login, sso, passwordless, passkeys
 Requires at least: 6.0
-Tested up to: 7.1
+Tested up to: 7.2
 Requires PHP: 8.0
 <!-- x-release-please-start-version -->
 Stable tag: 1.3.0

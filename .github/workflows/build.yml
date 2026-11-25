@@ -6,6 +6,9 @@ on:
   pull_request:
   workflow_dispatch:
 
+permissions:
+  contents: read
+
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -43,3 +46,22 @@ jobs:
         with:
           name: descope-wp
           path: build/descope-wp.zip
+
+  plugin-check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Package as deployed to WordPress.org
+        run: |
+          composer install --no-dev --prefer-dist --optimize-autoloader --no-interaction
+          rsync -a --exclude-from=.distignore ./ "$RUNNER_TEMP/descope/"
+
+      - uses: wordpress/plugin-check-action@10857da14b6c2246d15402b3e69f777edcf8c12e # v1.1.9
+        # Informational until existing Plugin Check errors are fixed.
+        continue-on-error: true
+        with:
+          build-dir: ${{ runner.temp }}/descope
+          slug: descope
+          wp-version: latest
+
