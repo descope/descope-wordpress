@@ -83,7 +83,7 @@ class Descope_Wp_Admin
 
     public function descope_log($message)
     {
-        $timestamp = date('Y-m-d H:i:s');
+        $timestamp = wp_date('Y-m-d H:i:s');
         $log_message = "[$timestamp] $message";
         
         // Get existing logs

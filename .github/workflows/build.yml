@@ -56,6 +56,7 @@ jobs:
         run: |
           composer install --no-dev --prefer-dist --optimize-autoloader --no-interaction
           rsync -a --exclude-from=.distignore ./ "$RUNNER_TEMP/descope/"
+          sed -i '/x-release-please-/d' "$RUNNER_TEMP/descope/readme.txt"
 
       - uses: wordpress/plugin-check-action@10857da14b6c2246d15402b3e69f777edcf8c12e # v1.1.9
         # Informational until existing Plugin Check errors are fixed.
