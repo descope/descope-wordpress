@@ -43,7 +43,9 @@ jobs:
           sudo systemctl start mysql.service
           mkdir "$RUNNER_TEMP/site" && cd "$RUNNER_TEMP/site"
           # rc: newest beta/RC, or latest stable when none is in progress.
-          [ "$WP" = rc ] && WP=$(curl -fsS 'https://api.wordpress.org/core/version-check/1.7/?channel=beta' | jq -r '.offers[0].version')
+          if [ "$WP" = rc ]; then
+            WP=$(curl -fsS 'https://api.wordpress.org/core/version-check/1.7/?channel=beta' | jq -er '.offers[0].version')
+          fi
           wp core download --version="$WP"
           wp config create --dbname=wp --dbuser=root --dbpass=root --dbhost=127.0.0.1 --extra-php <<'PHP'
           define('WP_DEBUG', true);
