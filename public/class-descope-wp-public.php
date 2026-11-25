@@ -283,7 +283,7 @@ class Descope_Wp_Public
         } catch (Exception $e) {
             // Handle errors gracefully
             error_log('OIDC callback error: ' . $e->getMessage());
-            wp_die('Login failed: ' . $e->getMessage());
+            wp_die(esc_html('Login failed: ' . $e->getMessage()));
         }
     }
 
@@ -374,19 +374,19 @@ class Descope_Wp_Public
         ]);
 
         if (is_wp_error($response)) {
-            throw new Exception('Error fetching tokens: ' . $response->get_error_message());
+            throw new Exception('Error fetching tokens: ' . $response->get_error_message()); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- escaped at wp_die, kept raw for error_log.
         }
 
         $http_code = wp_remote_retrieve_response_code($response);
         if ($http_code !== 200) {
             $response_body = wp_remote_retrieve_body($response);
-            throw new Exception('Error fetching tokens: HTTP ' . $http_code . ' - ' . $response_body);
+            throw new Exception('Error fetching tokens: HTTP ' . $http_code . ' - ' . $response_body); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- escaped at wp_die, kept raw for error_log.
         }
 
         $token_data = json_decode(wp_remote_retrieve_body($response), true);
 
         if (json_last_error() !== JSON_ERROR_NONE) {
-            throw new Exception('Error decoding token response JSON: ' . json_last_error_msg());
+            throw new Exception('Error decoding token response JSON: ' . json_last_error_msg()); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- escaped at wp_die, kept raw for error_log.
         }
 
         return $token_data;
@@ -401,19 +401,19 @@ class Descope_Wp_Public
         ]);
 
         if (is_wp_error($response)) {
-            throw new Exception('Error fetching user info: ' . $response->get_error_message());
+            throw new Exception('Error fetching user info: ' . $response->get_error_message()); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- escaped at wp_die, kept raw for error_log.
         }
 
         $http_code = wp_remote_retrieve_response_code($response);
         if ($http_code !== 200) {
             $response_body = wp_remote_retrieve_body($response);
-            throw new Exception('Error fetching user info: HTTP ' . $http_code . ' - ' . $response_body);
+            throw new Exception('Error fetching user info: HTTP ' . $http_code . ' - ' . $response_body); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- escaped at wp_die, kept raw for error_log.
         }
 
         $user_info = json_decode(wp_remote_retrieve_body($response), true);
 
         if (json_last_error() !== JSON_ERROR_NONE) {
-            throw new Exception('Error decoding user info JSON: ' . json_last_error_msg());
+            throw new Exception('Error decoding user info JSON: ' . json_last_error_msg()); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- escaped at wp_die, kept raw for error_log.
         }
 
         return $user_info;
@@ -504,7 +504,7 @@ class Descope_Wp_Public
                  $errors = $this->auth->getErrors();
         
             if (!empty($errors)) {
-                echo '<p>',implode(', ', $errors),'</p>';
+                echo '<p>', esc_html(implode(', ', $errors)), '</p>';
                 if ($this->auth->getSettings()->isDebugActive()) {
                     echo '<p>' . wp_kses($this->auth->getLastErrorReason(), array('p' => array(), 'br' => array())) . '</p>';
                 }

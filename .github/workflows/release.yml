@@ -57,7 +57,10 @@ jobs:
           tools: composer
 
       - name: Install dependencies
-        run: composer install --no-dev --prefer-dist --optimize-autoloader --no-interaction
+        run: |
+          composer install --no-dev --prefer-dist --optimize-autoloader --no-interaction
+          # Marker comments split the readme header, hiding Stable tag and License from WordPress.org.
+          sed -i '/x-release-please-/d' readme.txt
 
       - name: Deploy to WordPress.org
         id: deploy
