@@ -22,7 +22,7 @@ jobs:
           - { wp: '6.0', php: '8.0' }
           - { wp: latest, php: '8.1' }
           - { wp: latest, php: '8.4' }
-          - { wp: nightly, php: '8.4' }
+          - { wp: rc, php: '8.4' }
           - { wp: nightly, php: '8.6' }
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -42,6 +42,8 @@ jobs:
         run: |
           sudo systemctl start mysql.service
           mkdir "$RUNNER_TEMP/site" && cd "$RUNNER_TEMP/site"
+          # rc: newest beta/RC, or latest stable when none is in progress.
+          [ "$WP" = rc ] && WP=$(curl -fsS 'https://api.wordpress.org/core/version-check/1.7/?channel=beta' | jq -r '.offers[0].version')
           wp core download --version="$WP"
           wp config create --dbname=wp --dbuser=root --dbpass=root --dbhost=127.0.0.1 --extra-php <<'PHP'
           define('WP_DEBUG', true);
