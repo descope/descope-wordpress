@@ -32,6 +32,8 @@ jobs:
           php-version: ${{ matrix.php }}
           extensions: mysqli, curl, openssl, xml, zip
           tools: composer, wp-cli
+        env:
+          fail-fast: true
 
       - name: Install plugin dependencies
         run: composer install --no-dev --prefer-dist --no-interaction
