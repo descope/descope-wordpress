@@ -10,22 +10,30 @@ permissions:
 jobs:
   release-please:
     runs-on: ubuntu-latest
-    permissions:
-      contents: write
-      pull-requests: write
+    permissions: {} # all GitHub writes use the Descope Release Bot app token
     outputs:
       release_created: ${{ steps.rp.outputs.release_created }}
       tag_name: ${{ steps.rp.outputs.tag_name }}
       version: ${{ steps.rp.outputs.version }}
     steps:
+      - name: Generate GitHub App token
+        id: app-token
+        uses: actions/create-github-app-token@f418cff399f7aef4c2f0ad47e25ca7a6abbdd6fc # v3.4.0
+        with:
+          app-id: ${{ secrets.RELEASE_APP_ID }}
+          private-key: ${{ secrets.RELEASE_APP_PEM }}
+          permission-contents: write
+          permission-issues: write
+          permission-pull-requests: write
+
       - id: rp
         uses: googleapis/release-please-action@45996ed1f6d02564a971a2fa1b5860e934307cf7 # v5.0.0
         with:
+          token: ${{ steps.app-token.outputs.token }}
           config-file: release-please-config.json
           manifest-file: .release-please-manifest.json
 
-  # Release Please tags with GITHUB_TOKEN, which does not trigger other workflows,
-  # so the WordPress.org deploy runs here, gated on a release being created.
+  # WordPress.org deploy, gated on a release being created.
   deploy:
     needs: release-please
     if: ${{ needs.release-please.outputs.release_created == 'true' }}
